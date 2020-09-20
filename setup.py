@@ -5,7 +5,7 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 setup(
     name="PiGro",
-    version="0.2.1.1",
+    version="0.0.1",
     packages=find_packages(),
     scripts=[],
     setup_requires=['wheel'],
@@ -19,13 +19,13 @@ setup(
     },
 
     # metadata to display on PyPI
-    author="Daniel Sebastian Wienzek",
+    author="dawigit",
     author_email="wienzek.daniel@gmail.com",
     description="Raspberry Pi driven horticulture",
     keywords="horticulture grow pwm control temperature humidity",
-    url="https://github.com/dawigit/pigroprometheus",   # project home page, if any
+    url="https://github.com/dawigit/pigro",   # project home page, if any
     project_urls={
-        "Source Code": "https://github.com/dawigit/pigroprometheus",
+        "Source Code": "https://github.com/dawigit/pigro",
     },
     classifiers=[
         "License :: OSI Approved :: Python Software Foundation License"
