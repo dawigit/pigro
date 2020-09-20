@@ -13,11 +13,17 @@ from moon import set_location
 import Adafruit_PCA9685
 import adafruit_dht as dht0
 import w1thermsensor
-w1 = w1thermsensor.W1ThermSensor()
+try:
+    w1 = w1thermsensor.W1ThermSensor()
+except:
+    w1 = None
 import threading
 from threading import Timer
 from HIH7130 import HIH7130
-HIH7130 = HIH7130()
+try:
+    HIH7130 = HIH7130()
+except:
+    HIH7130 = None
 
 os.environ['DE'] = 'EU/CET-1'
 time.tzset()
@@ -67,7 +73,10 @@ dht_get()
 
 def get_hih(m):
     global hih_result
-    hih_result = HIH7130.read_hum_temp()
+    if HIH7130:
+        hih_result = HIH7130.read_hum_temp()
+    else:
+        hih_result = {'h' : 50.0, 'c' : 25.0}
     if m=='h':
         return "{0:3.2f} % RH".format(hih_result['h'])
     if m=='c':
@@ -194,7 +203,7 @@ def set_pwm(id,value):
             value = 20
         if K_PWM_REVERSED:
             value = 100 - value
-        
+
     v = int((4095*value)/100)
     pwm.set_pwm(id,0,v)
 
@@ -219,7 +228,10 @@ def wpwm_change(index,value,selected):
     set_pwm(index,value)
 
 w1t = [0,0,0,0]
-w1s = w1.get_available_sensors()
+if w1:
+    w1s = w1.get_available_sensors()
+else:
+    w1s = 0
 def w1_gettemparray():
     global w1t,w1s
 #    global w1t
@@ -229,6 +241,8 @@ def w1_gettemparray():
         if l > 0:
             for i in range(l):
                 w1t[i] = w1s[i].get_temperature()
+        else:
+            w1t = [0,0,0,0]
     except:
         w1t = [0,0,0,0]
 w1_gettemparray()
