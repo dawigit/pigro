@@ -26,22 +26,22 @@
 
 ##Installation:
 
-###The led driver is controlled via PWM0.
+The led driver is controlled via PWM0.
 
-###The outgoing air fan is controlled via PWM15.
+The outgoing air fan is controlled via PWM15.
 
-###OneWire/DS18B20: GPIO4
+OneWire/DS18B20: GPIO4
 add the following to your raspberry pi's `/boot/config.txt`:
 `dtoverlay=w1-gpio,gpiopin=4`
 
-###HIH7121
+HIH7121
 connect to i2c1
 
-###Enabling the interfaces
+##Enabling the interfaces
 `sudo raspi-config`
 -> `Interfacing-Options` -> enable `I2C`, enable `1-Wire`
 
-###Getting your Raspberry Pi ready
+##Getting your Raspberry Pi ready
 
 `sudo apt install python3 python3-{venv,dev,libgpiod,smbus}`
 
