@@ -11,7 +11,7 @@
 - keep track of the moonphase
 
 ## Hardware setup: ##
-
+(This is my setup, you only need the Raspberry Pi and the PCA9685 PWM HAT for testing)
 - Raspberry Pi ZeroW (any RaspberryPi will work)
 - PWM servo driver hat PCA9685
 - DS18B20 thermo sensor (Maxim Integrated)
@@ -26,6 +26,9 @@
 
 ## Installation: ##
 
+** CAUTION ** Only connect the led driver if you have the qualification to do so!
+Be careful with your fingers/hair with 12v fans!
+
 The led driver is controlled via **PWM0**.
 The outgoing air fan is controlled via **PWM15**.
 
@@ -35,7 +38,7 @@ add the following to your raspberry pi's `/boot/config.txt`:
 `dtoverlay=w1-gpio,gpiopin=4`
 
 HIH7121
-connect to i2c1
+connect it to i2c1
 
 
 ## Enabling the interfaces ##
@@ -45,7 +48,7 @@ connect to i2c1
 
 ## Getting your Raspberry Pi ready ##
 
-`sudo apt install python3 python3-{venv,dev,libgpiod,smbus}`
+`sudo apt install python3 python3-{pip,dev,libgpiod,smbus}`
 
 `git clone https://github.com/dawigit/pigro.git`
 
