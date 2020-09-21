@@ -1,6 +1,6 @@
 # PiGro #
 
-##PiGro allows you to:##
+## PiGro allows you to: ##
 
 - read thermal & humidity sensors
 - control pwm driven fans and led drives
@@ -10,7 +10,7 @@
 - automatically change power of led and out fan upon sensor values
 - keep track of the moonphase
 
-##Hardware setup:##
+## Hardware setup: ##
 
 - Raspberry Pi ZeroW (any RaspberryPi will work)
 - PWM servo driver hat PCA9685
@@ -24,7 +24,7 @@
 - Noctua PWM fan for outgoing air
 
 
-##Installation:##
+## Installation: ##
 
 The led driver is controlled via **PWM0**.
 The outgoing air fan is controlled via **PWM15**.
@@ -38,12 +38,12 @@ HIH7121
 connect to i2c1
 
 
-##Enabling the interfaces##
+## Enabling the interfaces ##
 `sudo raspi-config`
 -> `Interfacing-Options` -> enable `I2C`, enable `1-Wire`
 
 
-##Getting your Raspberry Pi ready##
+## Getting your Raspberry Pi ready ##
 
 `sudo apt install python3 python3-{venv,dev,libgpiod,smbus}`
 
