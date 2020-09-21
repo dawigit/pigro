@@ -8,7 +8,7 @@
 - maintenance mode for better eye protection from strong light sources
 - automatically turn the light on and off
 - automatically change power of led and out fan upon sensor values
-- keep track of the moonphase 
+- keep track of the moonphase
 
 ##Hardware setup:
 
@@ -44,3 +44,5 @@ connect to i2c1
 ###Getting your Raspberry Pi ready
 
 `sudo apt install python3 python3-{venv,dev,libgpiod,smbus}`
+
+![Screenshot](img_pigro.png)

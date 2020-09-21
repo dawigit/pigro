@@ -108,8 +108,8 @@ S_SPACE2 = "  "
 S_SPACE3 = "   "
 
 
-L_ZEUS = " ⚡ZEUS⚡"
-L_PIGROPRO = "🔥 PiGro PROMETHEUS 🌼 "
+L_LIGHT = " PWM0 💡 "
+L_PIGROPRO = "PiGro"
 L_LIGHTON = "light on"
 L_LIGHTOFF = "light off"
 L_MAINTENANCE = "maintenance "
@@ -131,6 +131,7 @@ daynightmode = 0
 
 DEV = True
 UFREQ = 5
+MAINTENANCETIME = 10
 power_on = False
 maintenance = False
 
@@ -144,7 +145,7 @@ pos_pigropro = PG(2,6)
 pos_datetime = PG(2, 40)
 pos_moon = PG(4,40)
 pos_temperature = PG(8,40)
-pos_zeusselect = PG(5,2)
+pos_lightselect = PG(5,2)
 pos_pwm = PG(20,2)
 pos_dnmode = PG(5,12)
 pos_maintenance = PG(4,20)
@@ -152,7 +153,7 @@ pos_clock = PG(11,13)
 
 suw = SuWidget(scr)
 
-pwmzeus = 0
+pwmlight = 0
 pwmv = [0]*16
 pwms = [0]*16
 pwmid = [0]*16
@@ -174,7 +175,7 @@ try:
     if file:
         config = yaml.load(file, Loader=yaml.FullLoader)
         if config:
-            pwmzeus = int(config['pwmzeus'])
+            pwmlight = int(config['pwmlight'])
             pwms = config['pwms']
             pwmv = config['pwmv']
             daynightmode = int(config['daynightmode'])
@@ -304,10 +305,10 @@ def update_maintenance():
     return S_WRENCH if maintenance else S_SPACE2
 
 suw.rect(0, 0, 79, 32)
-suw.add_widgetlabel(L_ZEUS, pos_zeusselect.x, pos_zeusselect.y-1)
+suw.add_widgetlabel(L_LIGHT, pos_lightselect.x, pos_lightselect.y-1)
 idprometheus = suw.add_widgetlabelvalue(L_PIGROPRO, pos_pigropro.x, pos_pigropro.y, S_SLEEP, update_onofflabel)
 idmaintenance = suw.add_widgetlabelvalue(L_MAINTENANCE, pos_maintenance.x, pos_maintenance.y, S_WRENCH, update_maintenance)
-idpercentpwma = suw.add_widgetselect(Lpercent,pos_zeusselect.x,pos_zeusselect.y,W_NOCIRCLE,pwmzeus,pwmzeus)
+idpercentpwma = suw.add_widgetselect(Lpercent,pos_lightselect.x,pos_lightselect.y,W_NOCIRCLE,pwmlight,pwmlight)
 iddaynightmode = suw.add_widgetselect(daynightmodelist,pos_dnmode.x,pos_dnmode.y,W_NOCIRCLE,daynightmode,daynightmode)
 
 suw.add_widgetlabel(L_LIGHTON, pos_clock.x,pos_clock.y-1)
@@ -341,7 +342,7 @@ for i in range(1,16):
     set_pwm(i,pwmv[i])
 
 
-def set_clockonmode(arg,mode):
+def set_clockonmode(arg,mode,dum):
     #suw.scr.addstr(30,2,mode)
     s = suw.get_clock(idclockstart)
     h = int(s.split(':')[0])+(12 if mode == daynightmodelist[0] else 18)
@@ -401,7 +402,7 @@ def setMaintenance():
     global lastmaintenance
     if lastmaintenance:
         lastmaintenance.cancel()
-    tim = Timer(10*60, check_maintenance)
+    tim = Timer(MAINTENANCETIME*60, check_maintenance)
     tim.start()
     lastmaintenance = tim
 
@@ -453,7 +454,7 @@ def automatique():
 def save():
     configsave = {'pwms' : pwms,
     'pwmv' : pwmv,
-    'pwmzeus' : suw._wlist[idpercentpwma].get_selected(),
+    'pwmlight' : suw._wlist[idpercentpwma].get_selected(),
     'daynightmode' : suw._wlist[iddaynightmode].get_selected(),
     'on' : str(suw.get_clock(idclockstart)),
     'off' : str(suw.get_clock(idclockstop)),
@@ -464,6 +465,7 @@ def save():
         config = yaml.dump(configsave, file)
 
 timed_update()
+update()
 key = ''
 while key != ord('q'):
     key = suw.scr.getch()
