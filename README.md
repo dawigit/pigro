@@ -45,8 +45,8 @@ connect to i2c1
 
 `sudo apt install python3 python3-{venv,dev,libgpiod,smbus}`
 
-`git clone https://github.com/dawigit/pigro.git`
-`cd pigro`
-`python3 pigro.py`
+`git clone https://github.com/dawigit/pigro.git
+cd pigro
+python3 pigro.py`
 
 ![Screenshot](img_pigro.png)
