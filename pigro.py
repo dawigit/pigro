@@ -263,6 +263,8 @@ def check_onoff():
     c = suw.get_clock(idclockstop)
     toff = int(c.split(":")[0])*60+int(c.split(":")[1])
     tnow = t.hour*60+t.minute
+    if toff < ton:
+        toff+=24*60
 #    suw.scr.addstr(0,0,"on: {0:} off: {1:} now: {2:} {3:}".format(ton,toff,tnow,type(ton)))
     if tnow >= ton and tnow <= toff:
         power_on = True
