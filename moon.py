@@ -29,9 +29,27 @@ def get_moon():
     dnm = ephem.next_new_moon(datetime.now()).datetime()
     dfm = ephem.next_full_moon(datetime.now()).datetime()
     if dnm > dfm:
-        return rise[int(p/33)]
+        if p>=0 and p<5:
+            return rise[0]
+        if p>=5 and p<35:
+            return rise[1]
+        if p>=35 and p<70:
+            return rise[2]
+        if p>70 and p<90:
+            return rise[3]
+        if p>=90:
+            return fall[0]
     else:
-        return fall[3-int(p/33)]
+        if p<=100 and p>80:
+            return fall[0]
+        if p<=80 and p>60:
+            return fall[1]
+        if p<=60 and p>40:
+            return fall[2]
+        if p<=40 and p>10:
+            return fall[3]
+        if p<10:
+            return rise[0]
 
 def get_phase():
     global location
