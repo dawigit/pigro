@@ -30,10 +30,14 @@ time.tzset()
 dto=datetime.now()
 city = "Rosenheim, Germany"
 set_location(city)
+
+K_UPDATE_COUNTER = 5 # sensors are read every 5th update
+
 K_AUTO_TEMP = 31
 K_PWM_REVERSED = False
 
 K_MAINTENANCE_LIGHT = 20    #pwm value for maintenance mode
+
 
 idpercentpwma = 0
 idclockstart = 0
@@ -73,10 +77,14 @@ def dht_get():
 
 dht_get()
 
+#get_hih(mode)
+#'r' read sensor values
+#'c'/'h' retrieve values from hih_result (stored sensor values)
 def get_hih(m):
     global hih_result
     if HIH7130:
-        hih_result = HIH7130.read_hum_temp()
+        if m=='r':
+            hih_result = HIH7130.read_hum_temp()
     else:
         hih_result = {'h' : 50.0, 'c' : 25.0}
     if m=='h':
@@ -87,6 +95,8 @@ def get_hih(m):
         return hih_result['h']
     if m=='C':
         return hih_result['c']
+
+get_hih('r')
 
 S_UPDATE = "🔄 "
 S_OK     = "✅ "
@@ -308,6 +318,8 @@ def update_maintenance():
     global maintenance
     return S_WRENCH if maintenance else S_SPACE2
 
+
+
 suw.rect(0, 0, 79, 32)
 suw.add_widgetlabel(L_LIGHT, pos_lightselect.x, pos_lightselect.y-1)
 idprometheus = suw.add_widgetlabelvalue(L_PIGROPRO, pos_pigropro.x, pos_pigropro.y, S_SLEEP, update_onofflabel)
@@ -373,8 +385,9 @@ def update():
     update_datetime()
     suw.scr.refresh()
     counter += 1
-    if counter == 5:
+    if counter == K_UPDATE_COUNTER:
         dht_get()
+        get_hih('r')    #read new values from sensors
         #w1_gettemparray()
         counter = 0
     suw.update_all()
@@ -491,7 +504,6 @@ while key != ord('q'):
         if maintenance == False:
             setMaintenance()
         maintenance = not maintenance
-
         update()
         set_pwm(0,pwmv[0])
 save()
