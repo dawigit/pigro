@@ -33,6 +33,8 @@ set_location(city)
 K_AUTO_TEMP = 31
 K_PWM_REVERSED = False
 
+K_MAINTENANCE_LIGHT = 20    #pwm value for maintenance mode
+
 idpercentpwma = 0
 idclockstart = 0
 idclockstop = 0
@@ -131,7 +133,7 @@ daynightmode = 0
 
 DEV = True
 UFREQ = 5
-MAINTENANCETIME = 10
+MAINTENANCETIME = 20
 power_on = False
 maintenance = False
 
@@ -201,7 +203,7 @@ def set_pwm(id,value):
         value = 0
     if id == 0:
         if maintenance == True and power_on == True:
-            value = 20
+            value = K_MAINTENANCE_LIGHT
         if K_PWM_REVERSED:
             value = 100 - value
 
