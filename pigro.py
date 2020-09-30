@@ -2,6 +2,7 @@
 #!/usr/bin/env python3
 
 NOMOON = True
+NOAUTO = True
 
 import time               # Import time library
 from datetime import datetime
@@ -12,6 +13,9 @@ import Adafruit_PCA9685
 import threading
 from threading import Timer
 from sensors import sen
+if len(sen.sensors) == 0:
+    NOAUTO = True
+
 if not NOMOON:
     from moon import get_moon
     from moon import get_phase
@@ -360,7 +364,8 @@ def update():
 
 
 def timed_update():
-    automatique()
+    if NOAUTO == False:
+        automatique()
     update()
     check_onoff()
     setClock()
@@ -393,9 +398,12 @@ def automatique():
         automatique_counter = 0
     else:
         return
-
-    h = float(get_hih('H'))
-    td = float(get_hih('C'))
+    if get_hih('H') == 'N/A':
+        h = 50  #defaults
+        td = 25
+    else:
+        h = float(get_hih('H'))
+        td = float(get_hih('C'))
 
     if td > 0:
         if td > 31:

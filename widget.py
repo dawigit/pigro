@@ -122,7 +122,7 @@ class WidgetLabelValue(WidgetLabel):
 
     def draw(self,spacer=" "):
         if callable(self.get_value):
-            if self.arg===None:
+            if self.arg is None:
                 self.value = self.get_value()
             else:
                 self.value = self.get_value(self.arg)
