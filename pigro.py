@@ -1,35 +1,33 @@
 # -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 
-from widget import *
+NOMOON = True
+
 import time               # Import time library
 from datetime import datetime
 import locale
 import os
 import yaml
-from moon import get_moon
-from moon import get_phase
-from moon import set_location
 import Adafruit_PCA9685
-import adafruit_dht as dht0
-import w1thermsensor
-try:
-    w1 = w1thermsensor.W1ThermSensor()
-except:
-    w1 = None
 import threading
 from threading import Timer
-from HIH7130 import HIH7130
-try:
-    HIH7130 = HIH7130()
-except:
-    HIH7130 = None
+from sensors import sen
+if not NOMOON:
+    from moon import get_moon
+    from moon import get_phase
+    from moon import set_location
+    def getmoon():
+        return "{0:}".format(get_moon())
+    def getphase():
+        return "{0:3.2f}%".format(get_phase())
+    city = "Rosenheim, Germany"
+    set_location(city)
+
+from widget import *
 
 os.environ['DE'] = 'EU/CET-1'
 time.tzset()
 dto=datetime.now()
-city = "Rosenheim, Germany"
-set_location(city)
 
 K_UPDATE_COUNTER = 5 # sensors are read every 5th update
 
@@ -62,41 +60,8 @@ l4k = []
 for i in range(4096):
     l4k.append('{:>4}'.format(str(i)))
 
-dht = dht0.DHT22(23)
 
-dhtv = []
-def dht_get():
-    global dhtv
-    try:
-        h = dht.humidity
-        t = dht.temperature
-        dhtv = [h,t]
-    except RuntimeError as error:
-        errors.append(error.args)
-        dhtv = [0,0]
 
-dht_get()
-
-#get_hih(mode)
-#'r' read sensor values
-#'c'/'h' retrieve values from hih_result (stored sensor values)
-def get_hih(m):
-    global hih_result
-    if HIH7130:
-        if m=='r':
-            hih_result = HIH7130.read_hum_temp()
-    else:
-        hih_result = {'h' : 50.0, 'c' : 25.0}
-    if m=='h':
-        return "{0:3.2f} % RH".format(hih_result['h'])
-    if m=='c':
-        return "{0:3.2f} °C".format(hih_result['c'])
-    if m=='H':
-        return hih_result['h']
-    if m=='C':
-        return hih_result['c']
-
-get_hih('r')
 
 S_UPDATE = "🔄 "
 S_OK     = "✅ "
@@ -156,7 +121,7 @@ pos_status = PG(2,2)
 pos_pigropro = PG(2,6)
 pos_datetime = PG(2, 40)
 pos_moon = PG(4,40)
-pos_temperature = PG(8,40)
+pos_sens = PG(8,40)
 pos_lightselect = PG(5,2)
 pos_pwm = PG(20,2)
 pos_dnmode = PG(5,12)
@@ -240,32 +205,12 @@ def wpwm_change(index,value,selected):
     pwms[index] = selected
     set_pwm(index,value)
 
-w1t = [0,0,0,0]
-if w1:
-    w1s = w1.get_available_sensors()
-else:
-    w1s = 0
-def w1_gettemparray():
-    global w1t,w1s
-#    global w1t
-#    w1t = [0,0,0,0]
-    try:
-        l = len(w1s)
-        if l > 0:
-            for i in range(l):
-                w1t[i] = w1s[i].get_temperature()
-        else:
-            w1t = [0,0,0,0]
-    except:
-        w1t = [0,0,0,0]
-w1_gettemparray()
 
 
 m = '🌞'
 lasttimer = None
 lastmaintenance = None
 lasttimer_pwm = ''
-#city = 'Munich'
 
 def check_onoff():
     global power_on,idpercentpwma,idclockstart,idclockstop
@@ -286,29 +231,43 @@ def check_onoff():
         set_pwm(0,0)
         return False
 
-def getmoon():
-    return "{0:}".format(get_moon())
-def getphase():
-    return "{0:3.2f}%".format(get_phase())
 
-def get_w1t(i):
-    global w1t,gc
-    gc += 1
-#    return str.format("{0:3.2f} °C ({1:})", w1t[i-1],gc)
-    if i < len(w1t)+1:
-        return str.format("{0:3.2f} °C", w1t[i-1])
+def get_w1(i=0):
+    key = 'W1'+str(i)
+    if key in sen.sensors.keys():
+        w1t = sen.sensors['W1'+str(i)].get()
     else:
-        return str.format("{0:3.2f} °C", 0)
+        return 'N/A'
+    return str.format("{0:3.2f} °C", w1t)
 
-def get_dht(i):
-    global dhtv,gc
-    gc+=1
-    if i == K_DHTH:
-#        return str.format("{0:3.2f} % ({1:})",dhtv[0],gc)
-        return str.format("{0:3.2f} %",dhtv[K_DHTH-1])
-    if i == K_DHTT:
-#        return str.format("{0:3.2f} °C ({1:})",dhtv[1],gc)
-        return str.format("{0:3.2f} °C",dhtv[K_DHTT-1])
+def get_dht(m):
+    if 'DHT' in sen.sensors.keys():
+        if m == 'r':
+            value = sen.sensors['DHT'].read()
+        if m == 'h':
+            return str.format("{0:3.2f} %",value['h'])
+        if m == 'c':
+            return str.format("{0:3.2f} °C",value['c'])
+    else:
+        return 'N/A'
+
+#get_hih(mode)
+#'r' read sensor values
+#'c'/'h' retrieve values from hih_result (stored sensor values)
+def get_hih(m):
+    if 'HIH' in sen.sensors.keys():
+        if m=='r':
+            sen.sensors['HIH'].read()
+        if m=='h':
+            return "{0:3.2f} % RH".format(sen.sensors['HIH'].get()['h'])
+        if m=='c':
+            return "{0:3.2f} °C".format(sen.sensors['HIH'].get()['c'])
+        if m=='H':
+            return sen.sensors['HIH'].get()['h']
+        if m=='C':
+            return sen.sensors['HIH'].get()['c']
+    else:
+        return 'N/A'
 
 def update_onofflabel():
     global power_on
@@ -332,21 +291,26 @@ idclockstart = suw.add_clock(pos_clock.x,pos_clock.y,on_hour,on_minute)
 suw.add_widgetlabel(L_LIGHTOFF, pos_clock.x,pos_clock.y+2)
 idclockstop = suw.add_clock(pos_clock.x,pos_clock.y+3,off_hour,off_minute)
 
-idtempupper =   suw.add_widgetlabelvalue("{0:} board 1: ".format(S_THERMO),pos_temperature.x,pos_temperature.y, get_w1t(K_T1), get_w1t, K_T1)
-idtempboarda =  suw.add_widgetlabelvalue("{0:} board 2: ".format(S_THERMO),pos_temperature.x,pos_temperature.y+2, get_w1t(K_T2), get_w1t, K_T2)
-idtempboardb =  suw.add_widgetlabelvalue("{0:} board 3: ".format(S_THERMO),pos_temperature.x,pos_temperature.y+4, get_w1t(K_T3), get_w1t, K_T3)
-idtempexterior= suw.add_widgetlabelvalue("{0:} board 4: ".format(S_THERMO),pos_temperature.x,pos_temperature.y+6, get_w1t(K_T4), get_w1t, K_T4)
-iddh = suw.add_widgetlabelvalue("{0:<6} dht: ".format(S_THERMO),pos_temperature.x,pos_temperature.y+10, get_dht(K_DHTT), get_dht, K_DHTT)
-iddt = suw.add_widgetlabelvalue("{0:<5} dht: ".format(S_HUMIDITY),pos_temperature.x,pos_temperature.y+12, get_dht(K_DHTH), get_dht, K_DHTH)
-iddh = suw.add_widgetlabelvalue("{0:<6} dht: ".format(S_THERMO),pos_temperature.x,pos_temperature.y+10, get_dht(K_DHTT), get_dht, K_DHTT)
-iddt = suw.add_widgetlabelvalue("{0:<5} dht: ".format(S_HUMIDITY),pos_temperature.x,pos_temperature.y+12, get_dht(K_DHTH), get_dht, K_DHTH)
-
-idhiht = suw.add_widgetlabelvalue("{0:<6} hih: ".format(S_THERMO),pos_temperature.x,pos_temperature.y+15, get_hih('c'), get_hih, 'c')
-idhihh = suw.add_widgetlabelvalue("{0:<5} hih: ".format(S_HUMIDITY),pos_temperature.x,pos_temperature.y+16, get_hih('h') , get_hih, 'h')
-
-
-idmoon = suw.add_widgetlabelvalue("moon: ", pos_moon.x, pos_moon.y, getmoon(), getmoon)
-idphase = suw.add_widgetlabelvalue(" / ", pos_moon.x+10, pos_moon.y, getphase(), getphase)
+lc = 1
+if 'W10' in sen.sensors.keys():
+    suw.add_widgetlabelvalue("{0:} W10: ".format(S_THERMO),pos_sens.x,pos_sens.y, get_w1(0), get_w1, 0)
+if 'W11' in sen.sensors.keys():
+    suw.add_widgetlabelvalue("{0:} W11: ".format(S_THERMO),pos_sens.x,pos_sens.y+lc, get_w1(1), get_w1, 1)
+    lc+=1
+if 'DHT' in sen.sensors.keys():
+    suw.add_widgetlabelvalue("{0:} DHT: ".format(S_THERMO),pos_sens.x,pos_sens.y+lc, get_dht('c'), get_dht, 'c')
+    lc+=1
+    suw.add_widgetlabelvalue("{0:} DHT: ".format(S_HUMIDITY),pos_sens.x,pos_sens.y+lc, get_dht('h'), get_dht, 'h')
+    lc+=1
+if 'HIH' in sen.sensors.keys():
+    suw.add_widgetlabelvalue("{0:} HIH: ".format(S_THERMO),pos_sens.x,pos_sens.y+lc, get_hih('c'), get_hih, 'c')
+    lc+=1
+    suw.add_widgetlabelvalue("{0:} HIH: ".format(S_HUMIDITY),pos_sens.x,pos_sens.y+lc, get_hih('h') , get_hih, 'h')
+    lc+=1
+# could add more Sensors
+if not NOMOON:
+    suw.add_widgetlabelvalue("moon: ", pos_moon.x, pos_moon.y, getmoon(), getmoon)
+    suw.add_widgetlabelvalue(" / ", pos_moon.x+10, pos_moon.y, getphase(), getphase)
 
 vh = 10
 
@@ -386,9 +350,8 @@ def update():
     suw.scr.refresh()
     counter += 1
     if counter == K_UPDATE_COUNTER:
-        dht_get()
+        get_dht('r')
         get_hih('r')    #read new values from sensors
-        #w1_gettemparray()
         counter = 0
     suw.update_all()
     suw.scr.addstr(pos_status.y, pos_status.x,S_OK)
@@ -430,16 +393,10 @@ def automatique():
         automatique_counter = 0
     else:
         return
-    w1_gettemparray()
+
     h = float(get_hih('H'))
-    td = 0
-    tdiv = 0
-    for t in w1t:
-        if t > 0:
-            td += t
-            tdiv += 1
-    if tdiv > 0:
-        td /= tdiv
+    td = float(get_hih('C'))
+
     if td > 0:
         if td > 31:
             suw._wlist[pwmid[K_PWM_OUT]].movecursor(1)

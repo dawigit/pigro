@@ -122,10 +122,10 @@ class WidgetLabelValue(WidgetLabel):
 
     def draw(self,spacer=" "):
         if callable(self.get_value):
-            if self.arg:
-                self.value = self.get_value(self.arg)
-            else:
+            if self.arg===None:
                 self.value = self.get_value()
+            else:
+                self.value = self.get_value(self.arg)
         self.scr.addstr(self.y,self.x,str.format("{0:}{1:}{2:}",self.label,spacer,self.value))
 
     def set_value(self,value):
