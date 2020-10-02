@@ -37,7 +37,6 @@ dto=datetime.now()
 K_UPDATE_COUNTER = 2 # sensors are read every 5th update
 
 K_AUTO_TEMP = 31
-K_PWM_REVERSED = False
 
 K_MAINTENANCE_LIGHT = 20    #pwm value for maintenance mode
 
@@ -45,6 +44,7 @@ K_MAINTENANCE_LIGHT = 20    #pwm value for maintenance mode
 idpercentpwma = 0
 idclockstart = 0
 idclockstop = 0
+
 
 on_hour = 7
 on_minute = 0
@@ -107,7 +107,8 @@ K_DHTT = 2
 
 K_PWM_OUT = 15
 
-
+truefalselist = ["False","True "]
+pwmreversed = 0
 daynightmodelist = ["12/12 🌼","18/6 🌿"]
 daynightmode = 0
 
@@ -167,6 +168,9 @@ try:
             off_minute = int(config['off'].split(':')[1])
             power_on = config['power']
             maintenance = config['maintenance']
+            pwmreversed = config['pwmreversed']
+            if pwmreversed == True:
+                exit()
             #config = yaml.dump(dict_file, file)
 except:
     None
@@ -176,7 +180,7 @@ pwm = Adafruit_PCA9685.PCA9685()
 pwm.set_pwm_freq(PWMFREQ)
 
 def set_pwm(id,value):
-    global power_on, maintenance
+    global power_on, maintenance,pwmreversed
     if type(value) == str:
         value = int(value)
     if id == 0 and power_on == False:
@@ -184,7 +188,7 @@ def set_pwm(id,value):
     if id == 0:
         if maintenance == True and power_on == True:
             value = K_MAINTENANCE_LIGHT
-        if K_PWM_REVERSED:
+        if pwmreversed == True:
             value = 100 - value
 
     v = int((4095*value)/100)
@@ -237,15 +241,15 @@ def check_onoff():
         return False
 
 
-def get_w1(i):
-    if i == 'r':
+def get_w1(m):
+    if m == 'r':
         for s in sen.sensors.values():
             if type(s) is W1:
                 s.read()
         return
-    key = 'W1'+str(i)
+    key = 'W1'+str(m)
     if key in sen.sensors.keys():
-        w1t = sen.sensors['W1'+str(i)].get()
+        w1t = sen.sensors['W1'+str(m)].get()
     else:
         return 'N/A'
     return str.format("{0:3.2f} °C", w1t)
@@ -287,7 +291,13 @@ def update_maintenance():
     global maintenance
     return S_WRENCH if maintenance else S_SPACE2
 
-
+def set_pwmreversed(index,value,selected):
+    global pwmreversed
+    #print("{0:} {1:}".format(value,selected))
+    if selected == 0:
+        pwmreversed = False
+    if selected == 1:
+        pwmreversed = True
 
 suw.rect(0, 0, 79, 32)
 suw.add_widgetlabel(L_LIGHT, pos_lightselect.x, pos_lightselect.y-1)
@@ -295,11 +305,12 @@ idprometheus = suw.add_widgetlabelvalue(L_PIGROPRO, pos_pigropro.x, pos_pigropro
 idmaintenance = suw.add_widgetlabelvalue(L_MAINTENANCE, pos_maintenance.x, pos_maintenance.y, update_maintenance)
 idpercentpwma = suw.add_widgetselect(Lpercent,pos_lightselect.x,pos_lightselect.y,W_NOCIRCLE,pwmlight,pwmlight)
 iddaynightmode = suw.add_widgetselect(daynightmodelist,pos_dnmode.x,pos_dnmode.y,W_NOCIRCLE,daynightmode,daynightmode)
-
 suw.add_widgetlabel(L_LIGHTON, pos_clock.x,pos_clock.y-1)
 idclockstart = suw.add_clock(pos_clock.x,pos_clock.y,on_hour,on_minute)
 suw.add_widgetlabel(L_LIGHTOFF, pos_clock.x,pos_clock.y+2)
 idclockstop = suw.add_clock(pos_clock.x,pos_clock.y+3,off_hour,off_minute)
+
+idpwmreversedmode = suw.add_widgetroller(truefalselist, pos_clock.x,pos_clock.y+5,W_FRAME+W_NOCIRCLE+W_LIVE,pwmreversed,pwmreversed)
 
 lc = 1
 if 'W10' in sen.sensors.keys():
@@ -348,6 +359,7 @@ def update_datetime():
 #idpercentpwmb = suw.add_widgetroller(percent,15,15,W_FRAME+W_NOCIRCLE+W_LIVE,4,3,1,4)
 suw.set_onchange(iddaynightmode, set_clockonmode)
 suw.set_onchange(idpercentpwma,wpwm_change,0)
+suw.set_onchange(idpwmreversedmode, set_pwmreversed)
 suw.focus(idpercentpwma)
 
 counter = 0
@@ -424,17 +436,6 @@ def automatique():
 
     if h > 60:
         suw._wlist[pwmid[K_PWM_OUT]].movecursor(1)
-#
-#    if dhtv[K_DHTH-1] < 80 and not dhtv[K_DHTH-1] == 0:
-#        if w1t[K_TEXTERIOR-1] <= 25:
-#            suw._wlist[idpercentpwma].movecursor(1)
-#            suw._wlist[idpercentpwma].select()
-#
-#    if w1t[K_T1] > 28:
-#        suw._wlist[pwmid[K_PWM_OUT]].movecursor(1)
-#    if w1t[K_TUPPER] < 25:
-#        if suw._wlist[pwmid[K_PWM_OUT]].selected > 6:
-#            suw._wlist[pwmid[K_PWM_OUT]].movecursor(-1)
 
 def save():
     configsave = {'pwms' : pwms,
@@ -444,7 +445,8 @@ def save():
     'on' : str(suw.get_clock(idclockstart)),
     'off' : str(suw.get_clock(idclockstop)),
     'power' : power_on,
-    'maintenance' : maintenance
+    'maintenance' : maintenance,
+    'pwmreversed' : pwmreversed
     }
     with open(r'./pigro.yaml', 'w') as file:
         config = yaml.dump(configsave, file)
