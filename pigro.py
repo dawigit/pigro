@@ -14,6 +14,7 @@ import threading
 from threading import Timer
 from sensors import sen
 from sensors import W1
+
 if len(sen.sensors) == 0:
     NOAUTO = True
 
@@ -303,14 +304,14 @@ suw.rect(0, 0, 79, 32)
 suw.add_widgetlabel(L_LIGHT, pos_lightselect.x, pos_lightselect.y-1)
 idprometheus = suw.add_widgetlabelvalue(L_PIGROPRO, pos_pigropro.x, pos_pigropro.y, update_onofflabel)
 idmaintenance = suw.add_widgetlabelvalue(L_MAINTENANCE, pos_maintenance.x, pos_maintenance.y, update_maintenance)
-idpercentpwma = suw.add_widgetselect(Lpercent,pos_lightselect.x,pos_lightselect.y,W_NOCIRCLE,pwmlight,pwmlight)
-iddaynightmode = suw.add_widgetselect(daynightmodelist,pos_dnmode.x,pos_dnmode.y,W_NOCIRCLE,daynightmode,daynightmode)
+idpercentpwma = suw.add_widgetselect(Lpercent,pos_lightselect.x,pos_lightselect.y,WMode.NoCircle,pwmlight,pwmlight)
+iddaynightmode = suw.add_widgetselect(daynightmodelist,pos_dnmode.x,pos_dnmode.y,WMode.NoCircle,daynightmode,daynightmode)
 suw.add_widgetlabel(L_LIGHTON, pos_clock.x,pos_clock.y-1)
 idclockstart = suw.add_clock(pos_clock.x,pos_clock.y,on_hour,on_minute)
 suw.add_widgetlabel(L_LIGHTOFF, pos_clock.x,pos_clock.y+2)
 idclockstop = suw.add_clock(pos_clock.x,pos_clock.y+3,off_hour,off_minute)
 
-idpwmreversedmode = suw.add_widgetroller(truefalselist, pos_clock.x,pos_clock.y+5,W_FRAME+W_NOCIRCLE+W_LIVE,pwmreversed,pwmreversed)
+idpwmreversedmode = suw.add_widgetroller(truefalselist, pos_clock.x,pos_clock.y+5,WMode.FNL,pwmreversed,pwmreversed)
 
 lc = 1
 if 'W10' in sen.sensors.keys():
@@ -338,7 +339,7 @@ vh = 10
 for i in range(1,16):
     y = int(i/4)
     x = int(i%4)
-    pwmid[i] = suw.add_widgetroller(Lpercent, pos_pwm.x+(5*x), pos_pwm.y+(3*y),W_FRAME+W_NOCIRCLE+W_LIVE,pwms[i],pwms[i])
+    pwmid[i] = suw.add_widgetroller(Lpercent, pos_pwm.x+(5*x), pos_pwm.y+(3*y),WMode.FNL,pwms[i],pwms[i])
     suw.set_onchange(pwmid[i], wpwm_change, i)
     set_pwm(i,pwmv[i])
 
@@ -356,7 +357,6 @@ def set_clockonmode(arg,mode,dum):
 def update_datetime():
     suw.scr.addstr(pos_datetime.y, pos_datetime.x, "{0:}".format(datetime.now().strftime('%Y-%m-%d  –  %H:%M:%S')))
 
-#idpercentpwmb = suw.add_widgetroller(percent,15,15,W_FRAME+W_NOCIRCLE+W_LIVE,4,3,1,4)
 suw.set_onchange(iddaynightmode, set_clockonmode)
 suw.set_onchange(idpercentpwma,wpwm_change,0)
 suw.set_onchange(idpwmreversedmode, set_pwmreversed)

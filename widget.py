@@ -1,12 +1,16 @@
 # -*- coding: utf-8 -*-
 #!/usr/bin/env python3
+from enum import Flag, auto
 import curses
 from curses.textpad import rectangle
 S_CURSOR = "👉"
 S_CLOCK = "⏰"
-W_FRAME = 0x01
-W_NOCIRCLE = 0x02
-W_LIVE = 0x04
+
+class WMode(Flag):
+    Frame = auto()
+    NoCircle = auto()
+    Live = auto()
+    FNL = Frame | NoCircle | Live
 
 scr = curses.initscr()
 y, x = scr.getmaxyx()
@@ -134,7 +138,7 @@ class WidgetLabelValue(WidgetLabel):
         self.value = value
 
 class WidgetRoller(Widget):
-    def __init__(self, scr, data, x,y,attributes=W_FRAME,selected=0,cursorposition=0,w=0,h=1):
+    def __init__(self, scr, data, x,y,attributes=WMode.Frame,selected=0,cursorposition=0,w=0,h=1):
         super().__init__(scr)
         if selected >= len(data):
             raise ValueError('selected value does not exist in data')
@@ -166,7 +170,7 @@ class WidgetRoller(Widget):
 
     def draw(self):
         plusone = 1
-        if self.attributes & W_FRAME:
+        if WMode.Frame in WMode(self.attributes):
             rect(scr,self.x,self.y,self.w+1,self.h+1)
         else:
             plusone = 0
@@ -193,7 +197,7 @@ class WidgetRoller(Widget):
 
 
     def movecursor(self,direction):
-        if self.attributes & W_NOCIRCLE:
+        if WMode.NoCircle in WMode(self.attributes):
             if self.cursorposition+direction < 0 or self.cursorposition+direction > len(self.data)-1:
                 return
         self.cursorposition += direction
@@ -201,7 +205,7 @@ class WidgetRoller(Widget):
             self.cursorposition = len(self.data)-1
         if self.cursorposition > len(self.data)-1:
             self.cursorposition = 0
-        if self.attributes & W_LIVE:
+        if WMode.Live in WMode(self.attributes):
             self.select()
         self.draw()
 
@@ -283,7 +287,7 @@ class WidgetSelect(Widget):
             self.cursorposition += 1
         if direction == -1 and self.cursorposition > 0:
             self.cursorposition -= 1
-        if self.attributes & W_LIVE:
+        if WMode.Live in WMode(self.attributes):
             self.select()
         self.drawcursor()
 
@@ -337,7 +341,7 @@ class SuWidget():
         SuWidget._wcounter += 1
         return SuWidget._wcounter - 1
 
-    def add_widgetroller(self,data, x,y, attributes=W_FRAME, selected=0, cursorposition=0, w=0,h=1):
+    def add_widgetroller(self,data, x,y, attributes=WMode.Frame, selected=0, cursorposition=0, w=0,h=1):
         SuWidget._focus = SuWidget._wcounter
         SuWidget._wlist.append(WidgetRoller(self.scr,data,x,y,attributes,selected,cursorposition,w,h))
         SuWidget._wcounter += 1
