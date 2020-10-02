@@ -2,7 +2,7 @@
 #!/usr/bin/env python3
 
 NOMOON = True
-NOAUTO = True
+NOAUTO = False
 
 import time               # Import time library
 from datetime import datetime
@@ -13,6 +13,7 @@ import Adafruit_PCA9685
 import threading
 from threading import Timer
 from sensors import sen
+from sensors import W1
 if len(sen.sensors) == 0:
     NOAUTO = True
 
@@ -33,7 +34,7 @@ os.environ['DE'] = 'EU/CET-1'
 time.tzset()
 dto=datetime.now()
 
-K_UPDATE_COUNTER = 5 # sensors are read every 5th update
+K_UPDATE_COUNTER = 2 # sensors are read every 5th update
 
 K_AUTO_TEMP = 31
 K_PWM_REVERSED = False
@@ -236,7 +237,12 @@ def check_onoff():
         return False
 
 
-def get_w1(i=0):
+def get_w1(i):
+    if i == 'r':
+        for s in sen.sensors.values():
+            if type(s) is W1:
+                s.read()
+        return
     key = 'W1'+str(i)
     if key in sen.sensors.keys():
         w1t = sen.sensors['W1'+str(i)].get()
@@ -285,8 +291,8 @@ def update_maintenance():
 
 suw.rect(0, 0, 79, 32)
 suw.add_widgetlabel(L_LIGHT, pos_lightselect.x, pos_lightselect.y-1)
-idprometheus = suw.add_widgetlabelvalue(L_PIGROPRO, pos_pigropro.x, pos_pigropro.y, S_SLEEP, update_onofflabel)
-idmaintenance = suw.add_widgetlabelvalue(L_MAINTENANCE, pos_maintenance.x, pos_maintenance.y, S_WRENCH, update_maintenance)
+idprometheus = suw.add_widgetlabelvalue(L_PIGROPRO, pos_pigropro.x, pos_pigropro.y, update_onofflabel)
+idmaintenance = suw.add_widgetlabelvalue(L_MAINTENANCE, pos_maintenance.x, pos_maintenance.y, update_maintenance)
 idpercentpwma = suw.add_widgetselect(Lpercent,pos_lightselect.x,pos_lightselect.y,W_NOCIRCLE,pwmlight,pwmlight)
 iddaynightmode = suw.add_widgetselect(daynightmodelist,pos_dnmode.x,pos_dnmode.y,W_NOCIRCLE,daynightmode,daynightmode)
 
@@ -297,24 +303,24 @@ idclockstop = suw.add_clock(pos_clock.x,pos_clock.y+3,off_hour,off_minute)
 
 lc = 1
 if 'W10' in sen.sensors.keys():
-    suw.add_widgetlabelvalue("{0:} W10: ".format(S_THERMO),pos_sens.x,pos_sens.y, get_w1(0), get_w1, 0)
+    suw.add_widgetlabelvalue("{0:} W10: ".format(S_THERMO),pos_sens.x,pos_sens.y, get_w1, 0)
 if 'W11' in sen.sensors.keys():
-    suw.add_widgetlabelvalue("{0:} W11: ".format(S_THERMO),pos_sens.x,pos_sens.y+lc, get_w1(1), get_w1, 1)
+    suw.add_widgetlabelvalue("{0:} W11: ".format(S_THERMO),pos_sens.x,pos_sens.y+lc, get_w1, 1)
     lc+=1
 if 'DHT' in sen.sensors.keys():
-    suw.add_widgetlabelvalue("{0:} DHT: ".format(S_THERMO),pos_sens.x,pos_sens.y+lc, get_dht('c'), get_dht, 'c')
+    suw.add_widgetlabelvalue("{0:} DHT: ".format(S_THERMO),pos_sens.x,pos_sens.y+lc, get_dht, 'c')
     lc+=1
-    suw.add_widgetlabelvalue("{0:} DHT: ".format(S_HUMIDITY),pos_sens.x,pos_sens.y+lc, get_dht('h'), get_dht, 'h')
+    suw.add_widgetlabelvalue("{0:} DHT: ".format(S_HUMIDITY),pos_sens.x,pos_sens.y+lc, get_dht, 'h')
     lc+=1
 if 'HIH' in sen.sensors.keys():
-    suw.add_widgetlabelvalue("{0:} HIH: ".format(S_THERMO),pos_sens.x,pos_sens.y+lc, get_hih('c'), get_hih, 'c')
+    suw.add_widgetlabelvalue("{0:} HIH: ".format(S_THERMO),pos_sens.x,pos_sens.y+lc, get_hih, 'c')
     lc+=1
-    suw.add_widgetlabelvalue("{0:} HIH: ".format(S_HUMIDITY),pos_sens.x,pos_sens.y+lc, get_hih('h') , get_hih, 'h')
+    suw.add_widgetlabelvalue("{0:} HIH: ".format(S_HUMIDITY),pos_sens.x,pos_sens.y+lc, get_hih, 'h')
     lc+=1
 # could add more Sensors
 if not NOMOON:
-    suw.add_widgetlabelvalue("moon: ", pos_moon.x, pos_moon.y, getmoon(), getmoon)
-    suw.add_widgetlabelvalue(" / ", pos_moon.x+10, pos_moon.y, getphase(), getphase)
+    suw.add_widgetlabelvalue("moon: ", pos_moon.x, pos_moon.y, getmoon)
+    suw.add_widgetlabelvalue(" / ", pos_moon.x+10, pos_moon.y, getphase)
 
 vh = 10
 
@@ -356,6 +362,7 @@ def update():
     if counter == K_UPDATE_COUNTER:
         get_dht('r')
         get_hih('r')    #read new values from sensors
+        get_w1('r')
         counter = 0
     suw.update_all()
     suw.scr.addstr(pos_status.y, pos_status.x,S_OK)
@@ -398,12 +405,8 @@ def automatique():
         automatique_counter = 0
     else:
         return
-    if get_hih('H') == 'N/A':
-        h = 50  #defaults
-        td = 25
-    else:
-        h = float(get_hih('H'))
-        td = float(get_hih('C'))
+    h = float(get_hih('H'))
+    td = float(get_hih('C'))
 
     if td > 0:
         if td > 31:

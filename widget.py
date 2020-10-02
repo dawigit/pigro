@@ -114,12 +114,14 @@ class WidgetLabel(WidgetNoFocus):
 
 
 class WidgetLabelValue(WidgetLabel):
-    def __init__(self, scr, label, x,y, value, getvalue=None, arg=None):
+    def __init__(self, scr, label, x,y, getvalue=None, arg=None):
         super().__init__(scr, label, x,y)
-        self.value = value
         self.get_value = getvalue
         self.arg = arg
-
+        if self.arg is None:
+            self.value = self.get_value()
+        else:
+            self.value = self.get_value(self.arg)
     def draw(self,spacer=" "):
         if callable(self.get_value):
             if self.arg is None:
@@ -345,8 +347,8 @@ class SuWidget():
         SuWidget._wlabel.append(WidgetLabel(self.scr,label,x,y))
         return len(SuWidget._wlabel)-1
 
-    def add_widgetlabelvalue(self, label, x,y, value, getvalue=None, arg=None):
-        SuWidget._wlabel.append(WidgetLabelValue(self.scr,label,x,y,value,getvalue,arg))
+    def add_widgetlabelvalue(self, label, x,y, getvalue=None, arg=None):
+        SuWidget._wlabel.append(WidgetLabelValue(self.scr,label,x,y,getvalue,arg))
         return len(SuWidget._wlabel)-1
 
     def update_label(self,id,label):
@@ -356,11 +358,6 @@ class SuWidget():
 
     def update_labelvalue(self,id,label,value):
         SuWidget._wlabel[id].label = label
-        if not type(value) == str:
-            value = str(value)
-        SuWidget._wlabel[id].value = value
-
-    def update_labelvaluevalue(self,id,value):
         if not type(value) == str:
             value = str(value)
         SuWidget._wlabel[id].value = value
@@ -397,7 +394,6 @@ class SuWidget():
 
     def drawlabels(self):
         for wlabel in (SuWidget._wlabel):
-            #self.scr.addstr(1,0,wlabel.get_value())
             if wlabel.label:
                 wlabel.draw()
 

@@ -23,11 +23,11 @@ class W1(Sensor):
     def __init__(self,w1,name=None):
         super().__init__(name if name else 'W1')
         self.w1 = w1
-        self.value = w1.get_temperature()
+        self.value = self.w1.get_temperature()
 
     def read(self):
-        self.value = w1.get_temperature()
-
+        self.value = self.w1.get_temperature()
+    
 class HIH(Sensor):
     def __init__(self,hih):
         super().__init__('HIH')
