@@ -228,8 +228,6 @@ class WidgetRoller(Widget):
         if callable(self.onchange):
             self.onchange(self.arg,self.data[self.selected],self.selected)
 
-
-
     def movecursor(self,direction):
         if direction is str:
             direction = int(direction)
@@ -264,6 +262,9 @@ class WidgetRoller(Widget):
 
     def get_selected_value(self):
         return self.data[self.selected]
+
+    def getconfig(self):
+        return self.get_selected()
 
 
 class WidgetSelect(Widget):
@@ -365,6 +366,9 @@ class WidgetSelect(Widget):
     def get_selected_value(self):
         return self.data[self.selected]
 
+    def getconfig(self):
+        return self.get_selected()
+
 class WidgetClock(Widget):
     def __init__(self, pos, time, labels=None):
         super().__init__(pos, labels)
@@ -387,6 +391,8 @@ class WidgetClock(Widget):
         self.minute.select(int(time.split(":")[1]))
     def get(self):
         return self.hour.get_selected_value()+":"+self.minute.get_selected_value()
+    def getconfig(self):
+        return [self.hour.get_selected(),self.minute.get_selected()]
 
 
 class SuWidget():
@@ -394,8 +400,7 @@ class SuWidget():
     _wlabel = OrderedDict()
     _focus = ""
     def __init__(self):
-        self.scr = scr
-
+        None
     def set_onchange(self,name,onchange,arg=None):
         SuWidget._wlist[name].set_onchange(onchange,arg)
 
@@ -494,3 +499,9 @@ class SuWidget():
 
     def rect(self,x,y,w,h):
         rect(x,y,w,h)
+
+    def get_config(self):
+        conf = {}
+        for key in SuWidget._wlist.keys():
+            conf[key] = SuWidget._wlist[key].getconfig()
+        return conf

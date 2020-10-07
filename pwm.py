@@ -4,9 +4,6 @@ import Adafruit_PCA9685
 from enum import Flag, auto
 from base import BaseUtil
 
-ModePWMDefault = 0
-ModePWMReversed = 1
-
 PWMFREQ = 1000
 basepwm = Adafruit_PCA9685.PCA9685()
 basepwm.set_pwm_freq(PWMFREQ)
@@ -26,9 +23,13 @@ class PWM(BaseUtil):
         self.rerange = [s,e]
         self.enabled = True
 
+    def getconf(self):
+        return [self.value, self.mode.value, self.rerange[0], self.rerange[1], self.enabled]
+
     def set(self,value):
-        if type(value) == str:
-            value = int(value)
+        #if type(value) is str:
+        value = int(value)
+        self.value = value
         if self.enabled == False:
             value = 0
         if self.mode & PWMMode.reranged:
@@ -40,7 +41,6 @@ class PWM(BaseUtil):
 
         value = int(value)
         v = int((4095*value)/100)
-        self.value = v
         basepwm.set_pwm(self.port,0,v)
 
     def setrerange(self,start,end):
@@ -48,6 +48,10 @@ class PWM(BaseUtil):
 
     def get(self):
         return self.value
+    def enable(self):
+        self.enabled = True
+    def disable(self):
+        self.enabled = False
 
 class PWM9685():
     def __init__(self):
@@ -56,7 +60,6 @@ class PWM9685():
     def add(self,port,value,mode=PWMMode.default,s=0,e=100):
         if self.ports[port] is None:
             self.ports[port] = PWM(port,value,mode,s,e)
-
     def remove(self,port,value):
         if self.ports[port] is not None:
             if value is not None:
@@ -72,4 +75,22 @@ class PWM9685():
             return self.ports[port].get()
         else:
             return -1
+    def getmode(self,port):
+        return self.ports[port].mode
+    def setmode(self,port,mode):
+        self.ports[port].mode = mode
+    def get_config(self):
+        r = [None]*16
+        for i in range(16):
+            if self.ports[i] is None:
+                r[i]=[0, 0, 0,100, False]
+            else:
+                r[i]=self.ports[i].getconf()
+        return r
+    def enable(self,port):
+        self.ports[port].enable()
+    def disable(self,port):
+        self.ports[port].disable()
+
+
 rpwm = PWM9685()

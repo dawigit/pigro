@@ -16,6 +16,8 @@ from threading import Timer
 from sensors import sen
 from sensors import W1
 from pwm import PWM,PWMMode,rpwm
+import os
+#myhost = os.uname()[1]
 
 if len(sen.sensors) == 0:
     NOAUTO = True
@@ -42,6 +44,10 @@ K_AUTO_TEMP = 31
 K_MAINTENANCE_LIGHT = 20    #pwm value for maintenance mode
 
 
+m = '🌞'
+lasttimer = None
+lastmaintenance = None
+lasttimer_pwm = ''
 
 
 on_hour = 7
@@ -132,92 +138,10 @@ pos_dnmode = WPos(12,5)
 pos_maintenance = WPos(20,5)
 pos_clock = WPos(13,11)
 
-suw = SuWidget()
 
-pwmlight = 0
-pwmv = [0]*16
-pwms = [0]*16
-pwmid = [0]*16
-
-pwmv[0]=50
-pwmv[4]=0
-pwmv[13]=0
-pwmv[14]=0
-pwmv[15]=80
-
-pwms[0]=5
-pwms[4]=0
-pwms[13]=0
-pwms[14]=0
-pwms[15]=8
-
-try:
-    file = open(r'./pigro.yaml', 'r')
-    if file:
-        config = yaml.load(file, Loader=yaml.FullLoader)
-        if config:
-            pwmlight = int(config['pwmlight'])
-            pwms = config['pwms']
-            pwmv = config['pwmv']
-            daynightmode = int(config['daynightmode'])
-            on_hour = int(config['on'].split(':')[0])
-            on_minute = int(config['on'].split(':')[1])
-            off_hour = int(config['off'].split(':')[0])
-            off_minute = int(config['off'].split(':')[1])
-            power_on = config['power']
-            maintenance = config['maintenance']
-            pwmreversed = config['pwmreversed']
-            if pwmreversed == True:
-                exit()
-            #config = yaml.dump(dict_file, file)
-except:
-    None
-
-PWMFREQ = 10000
-pwm = Adafruit_PCA9685.PCA9685()
-pwm.set_pwm_freq(PWMFREQ)
-
-def set_pwm(id,value):
-    global power_on, maintenance,pwmreversed
-    if type(value) == str:
-        value = int(value)
-    if id == 0 and power_on == False:
-        value = 0
-    if id == 0:
-        if maintenance == True and power_on == True:
-            value = K_MAINTENANCE_LIGHT
-        if pwmreversed == True:
-            value = 100 - value
-
-    v = int((4095*value)/100)
-    pwm.set_pwm(id,0,v)
-
-for i in range(16):
-    set_pwm(i,0)
-
-def set_pwm2(id,a,b):
-    global power_on
-    if type(a) == str:
-        a = int(a)
-    if type(b) == str:
-        b = int(b)
-    if id == 0 and power_on == False:
-        pwm.set_pwm(0,0,0)
-    else:
-        pwm.set_pwm(0,a,b)
 
 def wpwm_change(index,value,selected):
-    global pwmv, pwms
-    pwmv[index] = value
-    pwms[index] = selected
-    set_pwm(index,value)
-
-
-
-m = '🌞'
-lasttimer = None
-lastmaintenance = None
-lasttimer_pwm = ''
+    rpwm.set(index,value)
 
 def update_onofflabel():
     global power_on
@@ -227,60 +151,23 @@ def update_maintenance():
     global maintenance
     return S_WRENCH if maintenance else S_SPACE2
 
-suw.rect(0, 0, 79, 32)
-suw.add_widgetlabelvalue("PROMETHEUS", L_PIGROPRO, pos_pigropro, update_onofflabel)
-suw.add_widgetlabelvalue("MAINTENANCE", L_MAINTENANCE, pos_pigropro, update_maintenance)
-p = WPos(6,6)
-slist = [S_LAMP,S_LAMP,S_FAN,S_FAN]
-for i in range(4):
-    if i == 0:
-        p.setnext(10,3)
-    else:
-        p.setnext(10,2)
-
-    p.set(6,6+(p.nexty*i))
-
-    if i == 0:
-        suw.add_widgetroller("PWM"+str(i), Lpercent, p, WMode.FNL,pwmlight,pwmlight,0,1,[slist[i],WPos(-4,1), "PWM"+str(i)+"-"+str(i+3),WPos(0,-1)])
-    else:
-        suw.add_widgetroller("PWM"+str(i), Lpercent, p, WMode.FNL,pwmlight,pwmlight,0,1,[slist[i],WPos(-4,1)])
-    p.nextposx()
-    if i == 0:
-        suw.add_widgetclock("CLOCK"+str(i)+"ON", p, on_hour,on_minute,[" ⏰ ",WPos(-4,1), "On/Off",WPos(0,-1)])
-    else:
-        suw.add_widgetclock("CLOCK"+str(i)+"ON", p, on_hour,on_minute,[" ⏰ ",WPos(-4,1)])
-    p.nextposx()
-    suw.add_widgetclock("CLOCK"+str(i)+"OFF", p, off_hour,off_minute)
-    p.nextposx()
-    if i == 0:
-        suw.add_widgetroller("PWM"+str(i)+"INV", truefalselist, p, WMode.FNL,pwmreversed,pwmreversed,0,1,["Inverse",WPos(0,-1)])
-    else:
-        suw.add_widgetroller("PWM"+str(i)+"INV", truefalselist, p, WMode.FNL,pwmreversed,pwmreversed,0,1)
-
-
-def check_onoff():
+def check_onoff(port=0):
     global power_on
     t = datetime.now()
-    c = suw.get_clock_time("CLOCK0ON")
-    if c is None:
-        return
+    c = suw.get_clock_time("CLOCK"+str(port)+"ON")
     ton = int(c.split(":")[0])*60+int(c.split(":")[1])
-    c = suw.get_clock_time("CLOCK0OFF")
-    if c is None:
-        return
+    c = suw.get_clock_time("CLOCK"+str(port)+"OFF")
     toff = int(c.split(":")[0])*60+int(c.split(":")[1])
     tnow = t.hour*60+t.minute
     if toff < ton:
         toff+=24*60
-#    suw.scr.addstr(0,0,"on: {0:} off: {1:} now: {2:} {3:}".format(ton,toff,tnow,type(ton)))
     if tnow >= ton and tnow <= toff:
         power_on = True
-        set_pwm(0,int(suw._wlist["PWM0"].get_selected()*10))
+        rpwm.enable(port)
+        rpwm.set(port,int(suw._wlist["PWM"+str(port)].get_selected()*10))
     else:
-        #power_on = False
-        #set_pwm(0,0)
-        power_on = True
-        set_pwm(0,int(suw._wlist["PWM0"].get_selected()*10))
+        power_on = False
+        rpwm.disable(port)
 
 
 def get_w1(m):
@@ -325,19 +212,74 @@ def get_hih(m):
     else:
         return 'N/A'
 
+suw = SuWidget()
+config = {}
+try:
+    file = open(r'./config.yaml', 'r')
+    if file:
+        config = yaml.load(file, Loader=yaml.FullLoader)
+except:
+    config['pwm'] = rpwm.get_config()
+    for i in range(4):
+        inv = 0
+#        if i==0 or i==1:
+#            inv = 1 if myhost=='pigro' else 0
+        config['PWM'+str(i)] = 0
+        config['CLOCK'+str(i)+'ON'] = [7,0] #if myhost=='pigro' else [0,0]
+        config['CLOCK'+str(i)+'OFF'] = [19,0] #if myhost=='pigro' else [23,59]
+        config['PWM'+str(i)+'INV'] = inv
 
-def set_pwmreversed(index,value,selected):
-    global pwmreversed
-    #print("{0:} {1:}".format(value,selected))
-    if selected == 0:
-        pwmreversed = False
-    if selected == 1:
-        pwmreversed = True
 
+suw.rect(0, 0, 79, 32)
+suw.add_widgetlabelvalue("PIGRO", L_PIGROPRO, pos_pigropro, update_onofflabel)
+suw.add_widgetlabelvalue("MAINTENANCE", L_MAINTENANCE, pos_pigropro, update_maintenance)
+p = WPos(6,6)
+slist = [S_LAMP,S_LAMP,S_FAN,S_FAN]
+for i in range(4):
+    if i == 0:
+        p.setnext(10,3)
+    else:
+        p.setnext(10,2)
 
+    p.set(6,6+(p.nexty*i))
+
+    if i == 0:
+        suw.add_widgetroller("PWM"+str(i), Lpercent, p, WMode.FNL,
+            config['PWM'+str(i)],config['PWM'+str(i)],0,1,[slist[i],WPos(-4,1), "PWM"+str(i)+"-"+str(i+3),WPos(0,-1)])
+    else:
+        suw.add_widgetroller("PWM"+str(i), Lpercent, p, WMode.FNL,config['PWM'+str(i)],config['PWM'+str(i)],0,1,[slist[i],WPos(-4,1)])
+    p.nextposx()
+    if i == 0:
+        suw.add_widgetclock("CLOCK"+str(i)+"ON", p,
+            config['CLOCK'+str(i)+'ON'][0],config['CLOCK'+str(i)+'ON'][1],[" ⏰ ",WPos(-4,1), "On/Off",WPos(0,-1)])
+    else:
+        suw.add_widgetclock("CLOCK"+str(i)+"ON", p,
+            config['CLOCK'+str(i)+'ON'][0],config['CLOCK'+str(i)+'ON'][1],[" ⏰ ",WPos(-4,1)])
+    p.nextposx()
+    suw.add_widgetclock("CLOCK"+str(i)+"OFF", p,
+        config['CLOCK'+str(i)+'OFF'][0],config['CLOCK'+str(i)+'OFF'][1])
+    p.nextposx()
+    if i == 0:
+        suw.add_widgetroller("PWM"+str(i)+"INV", truefalselist, p, WMode.FNL,
+            config['PWM'+str(i)+'INV'],config['PWM'+str(i)+'INV'],0,1,["Inverse",WPos(0,-1)])
+    else:
+        suw.add_widgetroller("PWM"+str(i)+"INV", truefalselist, p, WMode.FNL,
+            config['PWM'+str(i)+'INV'],config['PWM'+str(i)+'INV'],0,1)
+
+#if myhost=='pigro':
+rpwm.add(0,10,PWMMode.default,0,100)
+rpwm.add(1,0,PWMMode.RERE,0,80)
+#else:
+#    rpwm.add(0,10,PWMMode.RERE,0,80)
+#    rpwm.add(1,0,PWMMode.RERE,0,80)
+rpwm.add(2,0)
+rpwm.add(3,0)
 
 suw.set_onchange("PWM0",wpwm_change,0)
-suw.set_onchange("PWM0INV", set_pwmreversed)
+suw.set_onchange("PWM1",wpwm_change,1)
+suw.set_onchange("PWM2",wpwm_change,2)
+suw.set_onchange("PWM3",wpwm_change,3)
+#suw.set_onchange("PWM0INV", set_pwmreversed,0)
 
 pos_sens.setnext(0,1)
 pos_moon.setnext(10,0)
@@ -364,17 +306,20 @@ if not NOMOON:
     pos_moon.nextpos()
     suw.add_widgetlabelvalue("MOONPHASE", " / ", pos_moon, getphase)
 
-#vh = 10
-#for i in range(1,16):
-#    y = int(i/4)
-#    x = int(i%4)
-#    suw.add_widgetroller("PWM"+str(i), Lpercent, pos_pwm.x+(5*x), pos_pwm.y+(3*y),WMode.FNL,pwms[i],pwms[i])
-#    suw.set_onchange("PWM"+str(i), wpwm_change, i)
-#    set_pwm(i,pwmv[i])
 
+
+def set_pwmreversed(index,value,selected):
+    global pwmreversed
+    #print("{0:} {1:}".format(value,selected))
+    m = rpwm.getmode(index)
+    if value == 0:
+        m = PWMMode(m)&~PWMMode.reversed
+    else:
+        m = PWMMode(m)|PWMMode.reversed
+    rpwm.setmode(index,m)
 
 def update_datetime():
-    suw.scr.addstr(pos_datetime.y, pos_datetime.x, "{0:}".format(datetime.now().strftime('%Y-%m-%d  –  %H:%M:%S')))
+    scr.addstr(pos_datetime.y, pos_datetime.x, "{0:}".format(datetime.now().strftime('%Y-%m-%d  –  %H:%M:%S')))
 
 
 suw.focus("PWM0")
@@ -383,9 +328,11 @@ counter = 0
 
 def update():
     global counter
-    suw.scr.addstr(pos_status.y, pos_status.x,S_UPDATE)
+    scr.addstr(pos_status.y, pos_status.x,S_UPDATE)
     update_datetime()
-    suw.scr.refresh()
+    scr.refresh()
+    for i in range(4):
+        check_onoff(i)
     counter += 1
     if counter == K_UPDATE_COUNTER:
         get_dht('r')
@@ -393,14 +340,13 @@ def update():
         get_w1('r')
         counter = 0
     suw.update_all()
-    suw.scr.addstr(pos_status.y, pos_status.x,S_OK)
-    suw.scr.refresh()
+    scr.addstr(pos_status.y, pos_status.x,S_OK)
+    scr.refresh()
 
 
 
 def timed_update():
     update()
-    check_onoff()
     setClock()
 
 def check_maintenance():
@@ -425,30 +371,24 @@ def setMaintenance():
     lastmaintenance = tim
 
 def save():
-    configsave = {'pwms' : pwms,
-    'pwmv' : pwmv,
-    'pwmlight' : suw._wlist["PWM0"].get_selected(),
-    'on' : str(suw.get_clock_time("CLOCK0ON")),
-    'off' : str(suw.get_clock_time("CLOCK0OFF")),
-    'power' : power_on,
-    'maintenance' : maintenance,
-    'pwmreversed' : pwmreversed
-    }
-    with open(r'./pigro.yaml', 'w') as file:
+    configsave = suw.get_config()
+    configsave['pwm'] = rpwm.get_config()
+
+    with open(r'./config.yaml', 'w') as file:
         config = yaml.dump(configsave, file)
 
 timed_update()
 update()
 key = ''
 while key != ord('q'):
-    key = suw.scr.getch()
+    key = scr.getch()
     suw.onkeyboard(key)
     if key == ord(' '):
         timed_update()
     if key == ord('t'):
         timed_update()
     if key == ord('r'):
-        suw.scr.clear();
+        scr.clear();
         suw.rect(0, 0, 79, 32)
         update()
     if key == ord('s'):
@@ -458,7 +398,7 @@ while key != ord('q'):
             setMaintenance()
         maintenance = not maintenance
         update()
-        set_pwm(0,pwmv[0])
+
 save()
 suw.quit()
 lasttimer.cancel()
