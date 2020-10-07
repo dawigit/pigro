@@ -1,5 +1,7 @@
 # PiGro #
 
+![Screenshot](pigro_compact.png)
+
 ## PiGro allows you to: ##
 
 - read thermal & humidity sensors
@@ -9,6 +11,7 @@
 - automatically turn the light on and off
 - automatically change power of led and out fan upon sensor values
 - keep track of the moonphase
+- GUI can be changed corresponding to your hardware setup
 
 ## Hardware setup: ##
 (This is my setup, you only need the Raspberry Pi and the PCA9685 PWM HAT for testing)
@@ -20,7 +23,8 @@
 - ELG-240-42AB led driver (Meanwell)
 - Zeus compact led board 2x (Led-Tech)
 - Bitfenix 200mm fan for cooling the led boards
-- optional: converter for pwm to 0-10v for non-pwm fans or meanwell hlg600
+- optional: converter [MOSFET IRF520+1kΩ resistor] for 5v pwm to 0-10v for non-pwm fans or Meanwell drivers 
+  (so you can achive 0-100% light intensity, without only 0-50% is possible (but with better lm/w ratio and cooling)
 - Noctua PWM fan for outgoing air
 
 
@@ -28,10 +32,12 @@
 
 ** CAUTION ** Only connect the led driver if you have the qualification to do so!
 Be careful with your fingers/hair with 12v fans!
+DON'T use cables with loose connectors for pwm connections to the led-driver (Meanwell) or fans!
+** NO PWM SIGNAL TO THE MEANWELL DRIVER RESULTS IN LED LIGHTS RUNNING AT 100% POWER! **
 
 The led driver is controlled via **PWM0**.
-The outgoing air fan is controlled via **PWM15**.
-
+The outgoing air fan is controlled via **PWM3**.
+(see image above)
 
 OneWire/DS18B20: **GPIO4**
 add the following to your raspberry pi's `/boot/config.txt`:
