@@ -4,6 +4,7 @@
 NOMOON = True
 NOAUTO = False
 
+from base import BaseUtil
 import time               # Import time library
 from datetime import datetime
 import locale
@@ -14,6 +15,7 @@ import threading
 from threading import Timer
 from sensors import sen
 from sensors import W1
+from pwm import PWM,PWMMode,rpwm
 
 if len(sen.sensors) == 0:
     NOAUTO = True
@@ -36,15 +38,10 @@ time.tzset()
 dto=datetime.now()
 
 K_UPDATE_COUNTER = 2 # sensors are read every 5th update
-
 K_AUTO_TEMP = 31
-
 K_MAINTENANCE_LIGHT = 20    #pwm value for maintenance mode
 
 
-idpercentpwma = 0
-idclockstart = 0
-idclockstop = 0
 
 
 on_hour = 7
@@ -89,6 +86,9 @@ S_WRENCH = "🔧 "
 S_SPACE = " "
 S_SPACE2 = "  "
 S_SPACE3 = "   "
+S_CURSOR = "👉"
+S_CLOCK = "⏰"
+S_FAN = " 🌪 "
 
 
 L_LIGHT = " PWM0 💡 "
@@ -119,23 +119,20 @@ MAINTENANCETIME = 20
 power_on = False
 maintenance = False
 
-class PG():
-    def __init__(self, y, x):
-         self.x = x
-         self.y = y
-pg = PG(32,79)
-pos_status = PG(2,2)
-pos_pigropro = PG(2,6)
-pos_datetime = PG(2, 40)
-pos_moon = PG(4,40)
-pos_sens = PG(8,40)
-pos_lightselect = PG(5,2)
-pos_pwm = PG(20,2)
-pos_dnmode = PG(5,12)
-pos_maintenance = PG(4,20)
-pos_clock = PG(11,13)
 
-suw = SuWidget(scr)
+pg = WPos(79,32)
+pos_status = WPos(2,2)
+pos_pigropro = WPos(6,2)
+pos_datetime = WPos(40,2)
+pos_moon = WPos(40,4)
+pos_sens = WPos(44,8)
+pos_lightselect = WPos(2,5)
+pos_pwm = WPos(2,20)
+pos_dnmode = WPos(12,5)
+pos_maintenance = WPos(20,5)
+pos_clock = WPos(13,11)
+
+suw = SuWidget()
 
 pwmlight = 0
 pwmv = [0]*16
@@ -176,7 +173,7 @@ try:
 except:
     None
 
-PWMFREQ = 1000
+PWMFREQ = 10000
 pwm = Adafruit_PCA9685.PCA9685()
 pwm.set_pwm_freq(PWMFREQ)
 
@@ -222,12 +219,55 @@ lasttimer = None
 lastmaintenance = None
 lasttimer_pwm = ''
 
+def update_onofflabel():
+    global power_on
+    return S_LAMP if power_on else S_SLEEP
+
+def update_maintenance():
+    global maintenance
+    return S_WRENCH if maintenance else S_SPACE2
+
+suw.rect(0, 0, 79, 32)
+suw.add_widgetlabelvalue("PROMETHEUS", L_PIGROPRO, pos_pigropro, update_onofflabel)
+suw.add_widgetlabelvalue("MAINTENANCE", L_MAINTENANCE, pos_pigropro, update_maintenance)
+p = WPos(6,6)
+slist = [S_LAMP,S_LAMP,S_FAN,S_FAN]
+for i in range(4):
+    if i == 0:
+        p.setnext(10,3)
+    else:
+        p.setnext(10,2)
+
+    p.set(6,6+(p.nexty*i))
+
+    if i == 0:
+        suw.add_widgetroller("PWM"+str(i), Lpercent, p, WMode.FNL,pwmlight,pwmlight,0,1,[slist[i],WPos(-4,1), "PWM"+str(i)+"-"+str(i+3),WPos(0,-1)])
+    else:
+        suw.add_widgetroller("PWM"+str(i), Lpercent, p, WMode.FNL,pwmlight,pwmlight,0,1,[slist[i],WPos(-4,1)])
+    p.nextposx()
+    if i == 0:
+        suw.add_widgetclock("CLOCK"+str(i)+"ON", p, on_hour,on_minute,[" ⏰ ",WPos(-4,1), "On/Off",WPos(0,-1)])
+    else:
+        suw.add_widgetclock("CLOCK"+str(i)+"ON", p, on_hour,on_minute,[" ⏰ ",WPos(-4,1)])
+    p.nextposx()
+    suw.add_widgetclock("CLOCK"+str(i)+"OFF", p, off_hour,off_minute)
+    p.nextposx()
+    if i == 0:
+        suw.add_widgetroller("PWM"+str(i)+"INV", truefalselist, p, WMode.FNL,pwmreversed,pwmreversed,0,1,["Inverse",WPos(0,-1)])
+    else:
+        suw.add_widgetroller("PWM"+str(i)+"INV", truefalselist, p, WMode.FNL,pwmreversed,pwmreversed,0,1)
+
+
 def check_onoff():
-    global power_on,idpercentpwma,idclockstart,idclockstop
+    global power_on
     t = datetime.now()
-    c = suw.get_clock(idclockstart)
+    c = suw.get_clock_time("CLOCK0ON")
+    if c is None:
+        return
     ton = int(c.split(":")[0])*60+int(c.split(":")[1])
-    c = suw.get_clock(idclockstop)
+    c = suw.get_clock_time("CLOCK0OFF")
+    if c is None:
+        return
     toff = int(c.split(":")[0])*60+int(c.split(":")[1])
     tnow = t.hour*60+t.minute
     if toff < ton:
@@ -235,11 +275,12 @@ def check_onoff():
 #    suw.scr.addstr(0,0,"on: {0:} off: {1:} now: {2:} {3:}".format(ton,toff,tnow,type(ton)))
     if tnow >= ton and tnow <= toff:
         power_on = True
-        set_pwm(0,int(suw._wlist[idpercentpwma].get_selected()*10))
+        set_pwm(0,int(suw._wlist["PWM0"].get_selected()*10))
     else:
-        power_on = False
-        set_pwm(0,0)
-        return False
+        #power_on = False
+        #set_pwm(0,0)
+        power_on = True
+        set_pwm(0,int(suw._wlist["PWM0"].get_selected()*10))
 
 
 def get_w1(m):
@@ -284,13 +325,6 @@ def get_hih(m):
     else:
         return 'N/A'
 
-def update_onofflabel():
-    global power_on
-    return S_LAMP if power_on else S_SLEEP
-
-def update_maintenance():
-    global maintenance
-    return S_WRENCH if maintenance else S_SPACE2
 
 def set_pwmreversed(index,value,selected):
     global pwmreversed
@@ -300,70 +334,52 @@ def set_pwmreversed(index,value,selected):
     if selected == 1:
         pwmreversed = True
 
-suw.rect(0, 0, 79, 32)
-suw.add_widgetlabel(L_LIGHT, pos_lightselect.x, pos_lightselect.y-1)
-idprometheus = suw.add_widgetlabelvalue(L_PIGROPRO, pos_pigropro.x, pos_pigropro.y, update_onofflabel)
-idmaintenance = suw.add_widgetlabelvalue(L_MAINTENANCE, pos_maintenance.x, pos_maintenance.y, update_maintenance)
-idpercentpwma = suw.add_widgetselect(Lpercent,pos_lightselect.x,pos_lightselect.y,WMode.NoCircle,pwmlight,pwmlight)
-iddaynightmode = suw.add_widgetselect(daynightmodelist,pos_dnmode.x,pos_dnmode.y,WMode.NoCircle,daynightmode,daynightmode)
-suw.add_widgetlabel(L_LIGHTON, pos_clock.x,pos_clock.y-1)
-idclockstart = suw.add_clock(pos_clock.x,pos_clock.y,on_hour,on_minute)
-suw.add_widgetlabel(L_LIGHTOFF, pos_clock.x,pos_clock.y+2)
-idclockstop = suw.add_clock(pos_clock.x,pos_clock.y+3,off_hour,off_minute)
 
-idpwmreversedmode = suw.add_widgetroller(truefalselist, pos_clock.x,pos_clock.y+5,WMode.FNL,pwmreversed,pwmreversed)
 
-lc = 1
+suw.set_onchange("PWM0",wpwm_change,0)
+suw.set_onchange("PWM0INV", set_pwmreversed)
+
+pos_sens.setnext(0,1)
+pos_moon.setnext(10,0)
+
 if 'W10' in sen.sensors.keys():
-    suw.add_widgetlabelvalue("{0:} W10: ".format(S_THERMO),pos_sens.x,pos_sens.y, get_w1, 0)
+    suw.add_widgetlabelvalue("W1T0", "{0:} W10: ".format(S_THERMO),pos_sens, get_w1, 0)
+    pos_sens.nextpos()
 if 'W11' in sen.sensors.keys():
-    suw.add_widgetlabelvalue("{0:} W11: ".format(S_THERMO),pos_sens.x,pos_sens.y+lc, get_w1, 1)
-    lc+=1
+    suw.add_widgetlabelvalue("W1T1", "{0:} W11: ".format(S_THERMO),pos_sens, get_w1, 1)
+    pos_sens.nextpos()
 if 'DHT' in sen.sensors.keys():
-    suw.add_widgetlabelvalue("{0:} DHT: ".format(S_THERMO),pos_sens.x,pos_sens.y+lc, get_dht, 'c')
-    lc+=1
-    suw.add_widgetlabelvalue("{0:} DHT: ".format(S_HUMIDITY),pos_sens.x,pos_sens.y+lc, get_dht, 'h')
-    lc+=1
+    suw.add_widgetlabelvalue("DHTC", "{0:} DHT: ".format(S_THERMO),pos_sens, get_dht, 'c')
+    pos_sens.nextpos()
+    suw.add_widgetlabelvalue("DHTH", "{0:} DHT: ".format(S_HUMIDITY),pos_sens, get_dht, 'h')
+    pos_sens.nextpos()
 if 'HIH' in sen.sensors.keys():
-    suw.add_widgetlabelvalue("{0:} HIH: ".format(S_THERMO),pos_sens.x,pos_sens.y+lc, get_hih, 'c')
-    lc+=1
-    suw.add_widgetlabelvalue("{0:} HIH: ".format(S_HUMIDITY),pos_sens.x,pos_sens.y+lc, get_hih, 'h')
-    lc+=1
+    suw.add_widgetlabelvalue("HIHC", "{0:} HIH: ".format(S_THERMO),pos_sens, get_hih, 'c')
+    pos_sens.nextpos()
+    suw.add_widgetlabelvalue("HIHH", "{0:} HIH: ".format(S_HUMIDITY),pos_sens, get_hih, 'h')
+    pos_sens.nextpos()
 # could add more Sensors
 if not NOMOON:
-    suw.add_widgetlabelvalue("moon: ", pos_moon.x, pos_moon.y, getmoon)
-    suw.add_widgetlabelvalue(" / ", pos_moon.x+10, pos_moon.y, getphase)
+    suw.add_widgetlabelvalue("MOONIMAGE", "moon: ", pos_moon, getmoon)
+    pos_moon.nextpos()
+    suw.add_widgetlabelvalue("MOONPHASE", " / ", pos_moon, getphase)
 
-vh = 10
+#vh = 10
+#for i in range(1,16):
+#    y = int(i/4)
+#    x = int(i%4)
+#    suw.add_widgetroller("PWM"+str(i), Lpercent, pos_pwm.x+(5*x), pos_pwm.y+(3*y),WMode.FNL,pwms[i],pwms[i])
+#    suw.set_onchange("PWM"+str(i), wpwm_change, i)
+#    set_pwm(i,pwmv[i])
 
-for i in range(1,16):
-    y = int(i/4)
-    x = int(i%4)
-    pwmid[i] = suw.add_widgetroller(Lpercent, pos_pwm.x+(5*x), pos_pwm.y+(3*y),WMode.FNL,pwms[i],pwms[i])
-    suw.set_onchange(pwmid[i], wpwm_change, i)
-    set_pwm(i,pwmv[i])
-
-
-def set_clockonmode(arg,mode,dum):
-    #suw.scr.addstr(30,2,mode)
-    s = suw.get_clock(idclockstart)
-    h = int(s.split(':')[0])+(12 if mode == daynightmodelist[0] else 18)
-    if h > 23:
-        h-=24
-    m = int(s.split(':')[1])
-    suw.set_clock(idclockstop, h, m)
-    suw.update(idclockstop)
 
 def update_datetime():
     suw.scr.addstr(pos_datetime.y, pos_datetime.x, "{0:}".format(datetime.now().strftime('%Y-%m-%d  –  %H:%M:%S')))
 
-suw.set_onchange(iddaynightmode, set_clockonmode)
-suw.set_onchange(idpercentpwma,wpwm_change,0)
-suw.set_onchange(idpwmreversedmode, set_pwmreversed)
-suw.focus(idpercentpwma)
+
+suw.focus("PWM0")
 
 counter = 0
-automatique_counter = 0
 
 def update():
     global counter
@@ -383,8 +399,6 @@ def update():
 
 
 def timed_update():
-    if NOAUTO == False:
-        automatique()
     update()
     check_onoff()
     setClock()
@@ -410,40 +424,12 @@ def setMaintenance():
     tim.start()
     lastmaintenance = tim
 
-def automatique():
-    global automatique_counter
-    automatique_counter += 1
-    if automatique_counter > 9:
-        automatique_counter = 0
-    else:
-        return
-    h = float(get_hih('H'))
-    td = float(get_hih('C'))
-
-    if td > 0:
-        if td > 31:
-            suw._wlist[pwmid[K_PWM_OUT]].movecursor(1)
-        if td < 26 and h < 50:
-            if suw._wlist[pwmid[K_PWM_OUT]].selected > 4:
-                suw._wlist[pwmid[K_PWM_OUT]].movecursor(-1)
-        if td > K_AUTO_TEMP:
-            if suw._wlist[idpercentpwma].selected > 5:
-                suw._wlist[idpercentpwma].movecursor(-1)
-                suw._wlist[idpercentpwma].select()
-        if td < K_AUTO_TEMP:
-            suw._wlist[idpercentpwma].movecursor(1)
-            suw._wlist[idpercentpwma].select()
-
-    if h > 60:
-        suw._wlist[pwmid[K_PWM_OUT]].movecursor(1)
-
 def save():
     configsave = {'pwms' : pwms,
     'pwmv' : pwmv,
-    'pwmlight' : suw._wlist[idpercentpwma].get_selected(),
-    'daynightmode' : suw._wlist[iddaynightmode].get_selected(),
-    'on' : str(suw.get_clock(idclockstart)),
-    'off' : str(suw.get_clock(idclockstop)),
+    'pwmlight' : suw._wlist["PWM0"].get_selected(),
+    'on' : str(suw.get_clock_time("CLOCK0ON")),
+    'off' : str(suw.get_clock_time("CLOCK0OFF")),
     'power' : power_on,
     'maintenance' : maintenance,
     'pwmreversed' : pwmreversed
@@ -467,9 +453,6 @@ while key != ord('q'):
         update()
     if key == ord('s'):
         save()
-    if key == ord('l'):
-        w1 = w1thermsensor.W1ThermSensor()
-        w1s = w1.get_available_sensors()
     if key == ord('m'):
         if maintenance == False:
             setMaintenance()
