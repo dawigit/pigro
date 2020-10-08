@@ -3,7 +3,8 @@
 
 NOMOON = True
 NOAUTO = False
-
+ROW1 = 4
+ROW2 = 2
 from base import BaseUtil
 import time               # Import time library
 from datetime import datetime
@@ -16,8 +17,6 @@ from threading import Timer
 from sensors import sen
 from sensors import W1
 from pwm import PWM,PWMMode,rpwm
-import os
-#myhost = os.uname()[1]
 
 if len(sen.sensors) == 0:
     NOAUTO = True
@@ -98,7 +97,7 @@ S_FAN = " 🌪 "
 
 
 L_LIGHT = " PWM0 💡 "
-L_PIGROPRO = "PiGro"
+L_PIGRO = "PiGro"
 L_LIGHTON = "light on"
 L_LIGHTOFF = "light off"
 L_MAINTENANCE = "maintenance "
@@ -135,7 +134,7 @@ pos_sens = WPos(44,8)
 pos_lightselect = WPos(2,5)
 pos_pwm = WPos(2,20)
 pos_dnmode = WPos(12,5)
-pos_maintenance = WPos(20,5)
+pos_maintenance = WPos(20,2)
 pos_clock = WPos(13,11)
 
 
@@ -220,66 +219,61 @@ try:
         config = yaml.load(file, Loader=yaml.FullLoader)
 except:
     config['pwm'] = rpwm.get_config()
-    for i in range(4):
+    for i in range(ROW1*ROW2):
         inv = 0
-#        if i==0 or i==1:
-#            inv = 1 if myhost=='pigro' else 0
+        if i==0 or i==1:
+            inv = 1
         config['PWM'+str(i)] = 0
-        config['CLOCK'+str(i)+'ON'] = [7,0] #if myhost=='pigro' else [0,0]
-        config['CLOCK'+str(i)+'OFF'] = [19,0] #if myhost=='pigro' else [23,59]
+        config['CLOCK'+str(i)+'ON'] = [7,0]
+        config['CLOCK'+str(i)+'OFF'] = [19,0]
         config['PWM'+str(i)+'INV'] = inv
 
 
-suw.rect(0, 0, 79, 32)
-suw.add_widgetlabelvalue("PIGRO", L_PIGROPRO, pos_pigropro, update_onofflabel)
-suw.add_widgetlabelvalue("MAINTENANCE", L_MAINTENANCE, pos_pigropro, update_maintenance)
-p = WPos(6,6)
+suw.rect(0, 0, 79, 40)
+suw.add_widgetlabelvalue("PIGRO", L_PIGRO, pos_pigropro, update_onofflabel)
+suw.add_widgetlabelvalue("MAINTENANCE", L_MAINTENANCE, pos_maintenance, update_maintenance)
+p = WPos(6,4)
 slist = [S_LAMP,S_LAMP,S_FAN,S_FAN]
-for i in range(4):
-    if i == 0:
-        p.setnext(10,3)
-    else:
-        p.setnext(10,2)
+for j in range(ROW2):
+    for i in range(ROW1):
+        if i == 0:
+            p.setnext(10,2)
+        else:
+            p.setnext(10,2)
 
-    p.set(6,6+(p.nexty*i))
+        if i == 0:
+            suw.add_widgetroller("PWM"+str(i+j*ROW1), Lpercent, p, WMode.FNL,
+                config['PWM'+str(i+j*ROW1)],config['PWM'+str(i+j*ROW1)],0,1,[slist[i],WPos(-4,1), "PWM"+str(i+j*ROW1)+"-"+str(i+j*ROW1+3),WPos(0,-1)])
+        else:
+            suw.add_widgetroller("PWM"+str(i+j*ROW1), Lpercent, p, WMode.FNL,config['PWM'+str(i+j*ROW1)],config['PWM'+str(i+j*ROW1)],0,1,[slist[i],WPos(-4,1)])
+        p.nextposx()
+        if i == 0 and j==0:
+            suw.add_widgetclock("CLOCK"+str(i+j*ROW1)+"ON", p,
+                config['CLOCK'+str(i+j*ROW1)+'ON'][0],config['CLOCK'+str(i+j*ROW1)+'ON'][1],[" ⏰ ",WPos(-4,1), "On/Off",WPos(0,-1)])
+        else:
+            suw.add_widgetclock("CLOCK"+str(i+j*ROW1)+"ON", p,
+                config['CLOCK'+str(i+j*ROW1)+'ON'][0],config['CLOCK'+str(i+j*ROW1)+'ON'][1],[" ⏰ ",WPos(-4,1)])
+        p.nextposx()
+        suw.add_widgetclock("CLOCK"+str(i+j*ROW1)+"OFF", p,
+            config['CLOCK'+str(i+j*ROW1)+'OFF'][0],config['CLOCK'+str(i+j*ROW1)+'OFF'][1])
+        p.nextposx()
+        if i == 0 and j==0:
+            suw.add_widgetroller("PWM"+str(i+j*ROW1)+"INV", truefalselist, p, WMode.FNL,
+                config['PWM'+str(i+j*ROW1)+'INV'],config['PWM'+str(i+j*ROW1)+'INV'],0,1,["Inverse",WPos(0,-1)])
+        else:
+            suw.add_widgetroller("PWM"+str(i+j*ROW1)+"INV", truefalselist, p, WMode.FNL,
+                config['PWM'+str(i+j*ROW1)+'INV'],config['PWM'+str(i+j*ROW1)+'INV'],0,1)
+        p.x = p.ix
+        p.nextposy()
+    p.setnext(0,3)
+    p.nextpos()
 
-    if i == 0:
-        suw.add_widgetroller("PWM"+str(i), Lpercent, p, WMode.FNL,
-            config['PWM'+str(i)],config['PWM'+str(i)],0,1,[slist[i],WPos(-4,1), "PWM"+str(i)+"-"+str(i+3),WPos(0,-1)])
-    else:
-        suw.add_widgetroller("PWM"+str(i), Lpercent, p, WMode.FNL,config['PWM'+str(i)],config['PWM'+str(i)],0,1,[slist[i],WPos(-4,1)])
-    p.nextposx()
-    if i == 0:
-        suw.add_widgetclock("CLOCK"+str(i)+"ON", p,
-            config['CLOCK'+str(i)+'ON'][0],config['CLOCK'+str(i)+'ON'][1],[" ⏰ ",WPos(-4,1), "On/Off",WPos(0,-1)])
-    else:
-        suw.add_widgetclock("CLOCK"+str(i)+"ON", p,
-            config['CLOCK'+str(i)+'ON'][0],config['CLOCK'+str(i)+'ON'][1],[" ⏰ ",WPos(-4,1)])
-    p.nextposx()
-    suw.add_widgetclock("CLOCK"+str(i)+"OFF", p,
-        config['CLOCK'+str(i)+'OFF'][0],config['CLOCK'+str(i)+'OFF'][1])
-    p.nextposx()
-    if i == 0:
-        suw.add_widgetroller("PWM"+str(i)+"INV", truefalselist, p, WMode.FNL,
-            config['PWM'+str(i)+'INV'],config['PWM'+str(i)+'INV'],0,1,["Inverse",WPos(0,-1)])
-    else:
-        suw.add_widgetroller("PWM"+str(i)+"INV", truefalselist, p, WMode.FNL,
-            config['PWM'+str(i)+'INV'],config['PWM'+str(i)+'INV'],0,1)
-
-#if myhost=='pigro':
 rpwm.add(0,10,PWMMode.default,0,100)
 rpwm.add(1,0,PWMMode.RERE,0,80)
-#else:
-#    rpwm.add(0,10,PWMMode.RERE,0,80)
-#    rpwm.add(1,0,PWMMode.RERE,0,80)
-rpwm.add(2,0)
-rpwm.add(3,0)
-
-suw.set_onchange("PWM0",wpwm_change,0)
-suw.set_onchange("PWM1",wpwm_change,1)
-suw.set_onchange("PWM2",wpwm_change,2)
-suw.set_onchange("PWM3",wpwm_change,3)
-#suw.set_onchange("PWM0INV", set_pwmreversed,0)
+for i in range(2,ROW1*ROW2):
+    rpwm.add(i,0)
+for i in range(ROW1*ROW2):
+    suw.set_onchange("PWM"+str(i),wpwm_change,i)
 
 pos_sens.setnext(0,1)
 pos_moon.setnext(10,0)
@@ -331,7 +325,7 @@ def update():
     scr.addstr(pos_status.y, pos_status.x,S_UPDATE)
     update_datetime()
     scr.refresh()
-    for i in range(4):
+    for i in range(ROW1*ROW2):
         check_onoff(i)
     counter += 1
     if counter == K_UPDATE_COUNTER:
@@ -389,7 +383,7 @@ while key != ord('q'):
         timed_update()
     if key == ord('r'):
         scr.clear();
-        suw.rect(0, 0, 79, 32)
+        suw.rect(0, 0, 79, 40)
         update()
     if key == ord('s'):
         save()

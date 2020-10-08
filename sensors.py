@@ -27,7 +27,7 @@ class W1(Sensor):
 
     def read(self):
         self.value = self.w1.get_temperature()
-    
+
 class HIH(Sensor):
     def __init__(self,hih):
         super().__init__('HIH')
@@ -58,19 +58,19 @@ class Sensors():
             for i in range(l):
                 self.addsensor(W1(self.w1s[i],'W1'+str(i)))
 
-#        try:
-#            self.dht = dht0.DHT22(DHT_PIN)
-#        except:
-#            self.dht = None
-#        if self.dht:
-#            self.addsensor(DHT(self.dht))
+        try:
+            self.dht = dht0.DHT22(DHT_PIN)
+            if self.dht:
+                self.addsensor(DHT(self.dht))
+        except:
+            self.dht = None
 
         try:
             self.hih = HIH7130()
+            if self.hih:
+                self.addsensor(HIH(self.hih))
         except:
             self.hih = None
-        if self.hih:
-            self.addsensor(HIH(self.hih))
 
     def addsensor(self,sensor):
         self.sensors[sensor.name] = sensor
