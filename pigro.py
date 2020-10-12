@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 
-NOMOON = True
+#NOMOON = True
 NOAUTO = False
 ROW1 = 4
-ROW2 = 2
+ROW2 = 1
+import sys
 from base import BaseUtil
 import time               # Import time library
 from datetime import datetime
@@ -18,10 +19,19 @@ from sensors import sen
 from sensors import W1
 from pwm import PWM,PWMMode,rpwm
 
+a_rere = False
+a_nomoon = False
+if len(sys.argv) > 1:
+    for a in sys.argv:
+        if a == '-rere':
+            a_rere = True
+        elif a == '-nomoon':
+            a_nomoon = True
+
 if len(sen.sensors) == 0:
     NOAUTO = True
 
-if not NOMOON:
+if not a_nomoon:
     from moon import get_moon
     from moon import get_phase
     from moon import set_location
@@ -38,15 +48,12 @@ os.environ['DE'] = 'EU/CET-1'
 time.tzset()
 dto=datetime.now()
 
-K_UPDATE_COUNTER = 2 # sensors are read every 5th update
+K_UPDATE_COUNTER = 5 # sensors are read every 5th update
 K_AUTO_TEMP = 31
 K_MAINTENANCE_LIGHT = 20    #pwm value for maintenance mode
 
-
+w = Widget(WPos(-1,-1),[WLabel('0')])
 m = '🌞'
-lasttimer = None
-lastmaintenance = None
-lasttimer_pwm = ''
 
 
 on_hour = 7
@@ -79,7 +86,7 @@ S_BLOOM = '🌼'
 S_DAY = '🌞'
 S_NIGHT = '🌙'
 S_WATER = '💧'
-S_THERMO = "🌡"
+S_THERMO =   "🌡  "
 S_HUMIDITY = "🌫💧"
 S_TORCH = "🔦"
 S_LAMP =  " 💡 "
@@ -121,19 +128,19 @@ daynightmode = 0
 DEV = True
 UFREQ = 5
 MAINTENANCETIME = 20
-power_on = False
-maintenance = False
+power_on = [False]*16
+maintenance = [False]*16
+maintenance_pwm = [20]*16
+
+lastmaintenance = [None]*16
 
 
 pg = WPos(79,32)
 pos_status = WPos(2,2)
-pos_pigropro = WPos(6,2)
+pos_pigro = WPos(4,2)
 pos_datetime = WPos(40,2)
-pos_moon = WPos(40,4)
+pos_moon = WPos(66,2)
 pos_sens = WPos(44,8)
-pos_lightselect = WPos(2,5)
-pos_pwm = WPos(2,20)
-pos_dnmode = WPos(12,5)
 pos_maintenance = WPos(20,2)
 pos_clock = WPos(13,11)
 
@@ -142,16 +149,8 @@ pos_clock = WPos(13,11)
 def wpwm_change(index,value,selected):
     rpwm.set(index,value)
 
-def update_onofflabel():
-    global power_on
-    return S_LAMP if power_on else S_SLEEP
-
-def update_maintenance():
-    global maintenance
-    return S_WRENCH if maintenance else S_SPACE2
-
 def check_onoff(port=0):
-    global power_on
+    global power_on,maintenance,maintenance_pwm
     t = datetime.now()
     c = suw.get_clock_time("CLOCK"+str(port)+"ON")
     ton = int(c.split(":")[0])*60+int(c.split(":")[1])
@@ -161,13 +160,17 @@ def check_onoff(port=0):
     if toff < ton:
         toff+=24*60
     if tnow >= ton and tnow <= toff:
-        power_on = True
+        power_on[port] = True
         rpwm.enable(port)
-        rpwm.set(port,int(suw._wlist["PWM"+str(port)].get_selected()*10))
+        if maintenance[port] == False:
+            suw._wlist['PWM'+str(port)].change_symbol('default')
+            rpwm.set(port,int(suw._wlist["PWM"+str(port)].get_selected()*10))
+        else:
+            rpwm.set(port,maintenance_pwm[port])
     else:
-        power_on = False
+        suw._wlist['PWM'+str(port)].change_symbol('off')
+        power_on[port] = False
         rpwm.disable(port)
-
 
 def get_w1(m):
     if m == 'r':
@@ -211,6 +214,15 @@ def get_hih(m):
     else:
         return 'N/A'
 
+def set_pwmreversed(index,value,selected=None):
+    if value == 0:
+        rpwm.submode(index,PWMMode.reversed)
+    else:
+        rpwm.addmode(index,PWMMode.reversed)
+    #rpwm.changemode(index,m)
+
+
+
 suw = SuWidget()
 config = {}
 try:
@@ -219,47 +231,56 @@ try:
         config = yaml.load(file, Loader=yaml.FullLoader)
 except:
     config['pwm'] = rpwm.get_config()
+    pwminv = [1,0,0,0]*ROW2  #eg. MeanWell Driver
+    clkon = [[0,0],[0,0],[0,0],[0,0]]*ROW2
+    clkoff = [[0,0],[0,0],[0,0],[0,0]]*ROW2
+    #pwminv = [0,0,0,0]
     for i in range(ROW1*ROW2):
-        inv = 0
-        if i==0 or i==1:
-            inv = 1
         config['PWM'+str(i)] = 0
-        config['CLOCK'+str(i)+'ON'] = [7,0]
-        config['CLOCK'+str(i)+'OFF'] = [19,0]
-        config['PWM'+str(i)+'INV'] = inv
+        config['CLOCK'+str(i)+'ON'] = clkon[i]
+        config['CLOCK'+str(i)+'OFF'] = clkoff[i]
+        config['PWM'+str(i)+'INV'] = pwminv[i]
 
-
+pl = WPos(6,2)
 suw.rect(0, 0, 79, 40)
-suw.add_widgetlabelvalue("PIGRO", L_PIGRO, pos_pigropro, update_onofflabel)
-suw.add_widgetlabelvalue("MAINTENANCE", L_MAINTENANCE, pos_maintenance, update_maintenance)
+suw.add_widgetlabel("PIGRO", L_PIGRO, pl)
 p = WPos(6,4)
+wsl = {'default':S_LAMP,'busy':S_WRENCH,'off':S_SLEEP}
+wsf = {'default':S_FAN,'busy':S_WRENCH,'off':S_SLEEP}
+wslist = [wsl,wsl,wsf,wsf]
 slist = [S_LAMP,S_LAMP,S_FAN,S_FAN]
 for j in range(ROW2):
     for i in range(ROW1):
         if i == 0:
-            p.setnext(10,2)
+            p.setnext(10,3)
         else:
-            p.setnext(10,2)
+            p.setnext(10,3)
 
         if i == 0:
             suw.add_widgetroller("PWM"+str(i+j*ROW1), Lpercent, p, WMode.FNL,
-                config['PWM'+str(i+j*ROW1)],config['PWM'+str(i+j*ROW1)],0,1,[slist[i],WPos(-4,1), "PWM"+str(i+j*ROW1)+"-"+str(i+j*ROW1+3),WPos(0,-1)])
+                config['PWM'+str(i+j*ROW1)],config['PWM'+str(i+j*ROW1)],0,1,
+                [WSymbol(wslist[i],WPos(-4,1)), WLabel("PWM"+str(i+j*ROW1)+"-"+str(i+j*ROW1+3),WPos(0,-1))])
         else:
-            suw.add_widgetroller("PWM"+str(i+j*ROW1), Lpercent, p, WMode.FNL,config['PWM'+str(i+j*ROW1)],config['PWM'+str(i+j*ROW1)],0,1,[slist[i],WPos(-4,1)])
+            suw.add_widgetroller("PWM"+str(i+j*ROW1), Lpercent, p, WMode.FNL,
+                config['PWM'+str(i+j*ROW1)],config['PWM'+str(i+j*ROW1)],0,1,
+                [WSymbol(wslist[i],WPos(-4,1))])
         p.nextposx()
         if i == 0 and j==0:
             suw.add_widgetclock("CLOCK"+str(i+j*ROW1)+"ON", p,
-                config['CLOCK'+str(i+j*ROW1)+'ON'][0],config['CLOCK'+str(i+j*ROW1)+'ON'][1],[" ⏰ ",WPos(-4,1), "On/Off",WPos(0,-1)])
+                config['CLOCK'+str(i+j*ROW1)+'ON'][0],config['CLOCK'+str(i+j*ROW1)+'ON'][1],
+                [WLabel(" ⏰ ",WPos(-4,1)), WLabel("On/Off",WPos(0,-1))])
         else:
             suw.add_widgetclock("CLOCK"+str(i+j*ROW1)+"ON", p,
-                config['CLOCK'+str(i+j*ROW1)+'ON'][0],config['CLOCK'+str(i+j*ROW1)+'ON'][1],[" ⏰ ",WPos(-4,1)])
+                config['CLOCK'+str(i+j*ROW1)+'ON'][0],config['CLOCK'+str(i+j*ROW1)+'ON'][1],
+                [WLabel(" ⏰ ",WPos(-4,1))])
         p.nextposx()
         suw.add_widgetclock("CLOCK"+str(i+j*ROW1)+"OFF", p,
             config['CLOCK'+str(i+j*ROW1)+'OFF'][0],config['CLOCK'+str(i+j*ROW1)+'OFF'][1])
         p.nextposx()
         if i == 0 and j==0:
             suw.add_widgetroller("PWM"+str(i+j*ROW1)+"INV", truefalselist, p, WMode.FNL,
-                config['PWM'+str(i+j*ROW1)+'INV'],config['PWM'+str(i+j*ROW1)+'INV'],0,1,["Inverse",WPos(0,-1)])
+                config['PWM'+str(i+j*ROW1)+'INV'],config['PWM'+str(i+j*ROW1)+'INV'],0,1,
+                [WLabel("Inverse",WPos(0,-1))])
         else:
             suw.add_widgetroller("PWM"+str(i+j*ROW1)+"INV", truefalselist, p, WMode.FNL,
                 config['PWM'+str(i+j*ROW1)+'INV'],config['PWM'+str(i+j*ROW1)+'INV'],0,1)
@@ -268,49 +289,46 @@ for j in range(ROW2):
     p.setnext(0,3)
     p.nextpos()
 
-rpwm.add(0,10,PWMMode.default,0,100)
-rpwm.add(1,0,PWMMode.RERE,0,80)
+if a_rere:
+    rpwm.add(0,10,PWMMode.RERE,0,80)
+else:
+    rpwm.add(0,10,PWMMode.default,0,100)
+rpwm.add(1,0,PWMMode.default,0,80)
+rpwm.add(2,0,PWMMode.default,0,100)
+rpwm.add(3,0,PWMMode.default,0,100)
 for i in range(2,ROW1*ROW2):
     rpwm.add(i,0)
 for i in range(ROW1*ROW2):
     suw.set_onchange("PWM"+str(i),wpwm_change,i)
+    suw.set_onchange("PWM"+str(i)+"INV",set_pwmreversed,i)
 
 pos_sens.setnext(0,1)
-pos_moon.setnext(10,0)
-
+pos_moon.setnext(4,0)
+#add_widgetlabelvalue(self, name, label, pos, getvalue=None, arg=None,p=None,s=None):
 if 'W10' in sen.sensors.keys():
-    suw.add_widgetlabelvalue("W1T0", "{0:} W10: ".format(S_THERMO),pos_sens, get_w1, 0)
+    suw.add_widgetlabelvalue("W1T0", "{0:} W10: ".format(S_THERMO),pos_sens, get_w1, 0,"W10 "+S_THERMO)
     pos_sens.nextpos()
 if 'W11' in sen.sensors.keys():
-    suw.add_widgetlabelvalue("W1T1", "{0:} W11: ".format(S_THERMO),pos_sens, get_w1, 1)
+    suw.add_widgetlabelvalue("W1T1", "{0:} W11: ".format(S_THERMO),pos_sens, get_w1, 1,"W11 "+S_THERMO)
     pos_sens.nextpos()
 if 'DHT' in sen.sensors.keys():
-    suw.add_widgetlabelvalue("DHTC", "{0:} DHT: ".format(S_THERMO),pos_sens, get_dht, 'c')
+    suw.add_widgetlabelvalue("DHTC", "{0:} DHT: ".format(S_THERMO),pos_sens, get_dht, 'c',"DHT "+S_THERMO)
     pos_sens.nextpos()
-    suw.add_widgetlabelvalue("DHTH", "{0:} DHT: ".format(S_HUMIDITY),pos_sens, get_dht, 'h')
+    suw.add_widgetlabelvalue("DHTH", "{0:} DHT: ".format(S_HUMIDITY),pos_sens, get_dht, 'h',"DHT "+S_HUMIDITY)
     pos_sens.nextpos()
 if 'HIH' in sen.sensors.keys():
-    suw.add_widgetlabelvalue("HIHC", "{0:} HIH: ".format(S_THERMO),pos_sens, get_hih, 'c')
+    suw.add_widgetlabelvalue("HIHC", "{0:} HIH: ".format(S_THERMO),pos_sens, get_hih, 'c',"HIH "+S_THERMO)
     pos_sens.nextpos()
-    suw.add_widgetlabelvalue("HIHH", "{0:} HIH: ".format(S_HUMIDITY),pos_sens, get_hih, 'h')
+    suw.add_widgetlabelvalue("HIHH", "{0:} HIH: ".format(S_HUMIDITY),pos_sens, get_hih, 'h',"HIH "+S_HUMIDITY)
     pos_sens.nextpos()
 # could add more Sensors
-if not NOMOON:
-    suw.add_widgetlabelvalue("MOONIMAGE", "moon: ", pos_moon, getmoon)
+if not a_nomoon:
+    suw.add_widgetlabelvalue("MOONIMAGE", " ", pos_moon, getmoon)
     pos_moon.nextpos()
-    suw.add_widgetlabelvalue("MOONPHASE", " / ", pos_moon, getphase)
+    suw.add_widgetlabelvalue("MOONPHASE", " ", pos_moon, getphase,None,"/ ")
 
 
 
-def set_pwmreversed(index,value,selected):
-    global pwmreversed
-    #print("{0:} {1:}".format(value,selected))
-    m = rpwm.getmode(index)
-    if value == 0:
-        m = PWMMode(m)&~PWMMode.reversed
-    else:
-        m = PWMMode(m)|PWMMode.reversed
-    rpwm.setmode(index,m)
 
 def update_datetime():
     scr.addstr(pos_datetime.y, pos_datetime.x, "{0:}".format(datetime.now().strftime('%Y-%m-%d  –  %H:%M:%S')))
@@ -343,10 +361,12 @@ def timed_update():
     update()
     setClock()
 
-def check_maintenance():
+def end_maintenance(i):
     global maintenance
-    if maintenance == True:
-        maintenance = False
+    if type(i) is list:
+        i = i[0]
+    if maintenance[i] == True:
+        maintenance[i] = False
         update()
 
 
@@ -356,13 +376,13 @@ def setClock():
     ti.start()
     lasttimer = ti
 
-def setMaintenance():
+def setMaintenance(i):
     global lastmaintenance
-    if lastmaintenance:
-        lastmaintenance.cancel()
-    tim = Timer(MAINTENANCETIME*60, check_maintenance)
+    if lastmaintenance[i] is not None:
+        lastmaintenance[i].cancel()
+    tim = Timer(MAINTENANCETIME*60, end_maintenance,[i])
     tim.start()
-    lastmaintenance = tim
+    lastmaintenance[i] = tim
 
 def save():
     configsave = suw.get_config()
@@ -387,11 +407,15 @@ while key != ord('q'):
         update()
     if key == ord('s'):
         save()
-    if key == ord('m'):
-        if maintenance == False:
-            setMaintenance()
-        maintenance = not maintenance
-        update()
+    for i in range(4):
+        if key == ord(str(i+1)) and power_on[i]==True:
+            if maintenance[i] == False:
+                setMaintenance(i)
+                suw._wlist['PWM'+str(i)].change_symbol('busy')
+            else:
+                suw._wlist['PWM'+str(i)].change_symbol('default')
+            maintenance[i] = not maintenance[i]
+            update()
 
 save()
 suw.quit()

@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+    # -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 import Adafruit_PCA9685
 from enum import Flag, auto
@@ -79,6 +79,12 @@ class PWM9685():
         return self.ports[port].mode
     def setmode(self,port,mode):
         self.ports[port].mode = mode
+    def addmode(self,port,mode):
+        self.ports[port].mode |= mode
+    def submode(self,port,mode):
+        self.ports[port].mode &= ~mode
+    def changemode(self,port,mode):
+        self.ports[port].mode = not (self.ports[port].mode & ~mode)
     def get_config(self):
         r = [None]*16
         for i in range(16):
@@ -91,6 +97,8 @@ class PWM9685():
         self.ports[port].enable()
     def disable(self,port):
         self.ports[port].disable()
+    def isenabled(self,port):
+        return self.ports[port].enabled
 
 
 rpwm = PWM9685()
