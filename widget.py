@@ -15,6 +15,7 @@ class WMode(Flag):
     Frame = auto()
     NoCircle = auto()
     Live = auto()
+    NoFocus = auto()
     FNL = Frame | NoCircle | Live
 
 class WPosAttr(Flag):
@@ -46,6 +47,8 @@ class WPos():
     def nextposy(self):
         self.lasty = self.y
         self.y += self.nexty
+    def draw(self,value):
+        scr.addstr(self.y,self.x,value)
 
 class WValue():
     def __init__(self,value,getvalue=None,arg=None,prefix="",suffix=""):
@@ -154,13 +157,13 @@ class BaseWidget(BaseUtil):
         None
 
 class Widget(BaseWidget):
-    def __init__(self,pos,labels=None):
+    def __init__(self,pos,labels=None,attributes=WMode.NoFocus):
         super().__init__()
         self.pos = pos
+        self.attributes = attributes
         self.onunfocus = None
         self.onchange = None
         self.focused = False
-        self.nofocus = False
         self.haslabels = False
         self.labels = list()
         if labels is not None:
@@ -430,7 +433,6 @@ class WidgetSelect(Widget):
 class WidgetClock(Widget):
     def __init__(self, pos, time, labels=None):
         super().__init__(pos, labels)
-        self.nofocus = True
         p1 = WPos(pos.x+1,pos.y+1)
         p2 = WPos(pos.x+4,pos.y+1)
         self.hour = WidgetRoller(h24,p1,WMode.Default,int(time.split(":")[0]),int(time.split(":")[0]))
@@ -499,7 +501,7 @@ class SuWidget():
             SuWidget._focus = k[k.index(SuWidget._focus)+1]
         else:
             SuWidget._focus = k[0]
-        if SuWidget._wlist[SuWidget._focus].nofocus == True:
+        if SuWidget._wlist[SuWidget._focus].attributes&WMode.NoFocus:
             self.next()
         SuWidget._wlist[SuWidget._focus].focus()
         SuWidget._wlist[SuWidget._focus].draw()
@@ -511,7 +513,7 @@ class SuWidget():
             SuWidget._focus = k[len(k)-1]
         else:
             SuWidget._focus = k[k.index(SuWidget._focus)-1]
-        if SuWidget._wlist[SuWidget._focus].nofocus == True:
+        if SuWidget._wlist[SuWidget._focus].attributes & WMode.NoFocus:
             self.prev()
         SuWidget._wlist[SuWidget._focus].focus()
         SuWidget._wlist[SuWidget._focus].draw()

@@ -103,11 +103,7 @@ S_CLOCK = "⏰"
 S_FAN = " 🌪 "
 
 
-L_LIGHT = " PWM0 💡 "
 L_PIGRO = "PiGro"
-L_LIGHTON = "light on"
-L_LIGHTOFF = "light off"
-L_MAINTENANCE = "maintenance "
 
 
 K_T1 = 1
@@ -136,8 +132,8 @@ lastmaintenance = [None]*16
 
 
 pg = WPos(79,32)
+pos_pigro = WPos(6,2)
 pos_status = WPos(2,2)
-pos_pigro = WPos(4,2)
 pos_datetime = WPos(40,2)
 pos_moon = WPos(66,2)
 pos_sens = WPos(44,8)
@@ -170,6 +166,7 @@ def check_onoff(port=0):
     else:
         suw._wlist['PWM'+str(port)].change_symbol('off')
         power_on[port] = False
+        rpwm.set(port,0)
         rpwm.disable(port)
 
 def get_w1(m):
@@ -222,28 +219,32 @@ def set_pwmreversed(index,value,selected=None):
     #rpwm.changemode(index,m)
 
 
-
 suw = SuWidget()
 config = {}
 try:
     file = open(r'./config.yaml', 'r')
     if file:
         config = yaml.load(file, Loader=yaml.FullLoader)
+        if a_rere :
+            config['PWM0INV'] = 1
+
 except:
+    # default config
     config['pwm'] = rpwm.get_config()
-    pwminv = [1,0,0,0]*ROW2  #eg. MeanWell Driver
-    clkon = [[0,0],[0,0],[0,0],[0,0]]*ROW2
-    clkoff = [[0,0],[0,0],[0,0],[0,0]]*ROW2
-    #pwminv = [0,0,0,0]
+    pwminv = [0,0,0,0]*ROW2  #eg. MeanWell Driver
+    if a_rere :
+        pwminv[0] = 1
+    clkon = [[7,0],[0,0],[0,0],[0,0]]*ROW2
+    clkoff = [[19,0],[0,0],[0,0],[23,59]]*ROW2
     for i in range(ROW1*ROW2):
         config['PWM'+str(i)] = 0
         config['CLOCK'+str(i)+'ON'] = clkon[i]
         config['CLOCK'+str(i)+'OFF'] = clkoff[i]
         config['PWM'+str(i)+'INV'] = pwminv[i]
 
-pl = WPos(6,2)
+
 suw.rect(0, 0, 79, 40)
-suw.add_widgetlabel("PIGRO", L_PIGRO, pl)
+suw.add_widgetlabel("PIGRO", L_PIGRO, pos_pigro)
 p = WPos(6,4)
 wsl = {'default':S_LAMP,'busy':S_WRENCH,'off':S_SLEEP}
 wsf = {'default':S_FAN,'busy':S_WRENCH,'off':S_SLEEP}
@@ -293,9 +294,7 @@ if a_rere:
     rpwm.add(0,10,PWMMode.RERE,0,80)
 else:
     rpwm.add(0,10,PWMMode.default,0,100)
-rpwm.add(1,0,PWMMode.default,0,80)
-rpwm.add(2,0,PWMMode.default,0,100)
-rpwm.add(3,0,PWMMode.default,0,100)
+rpwm.add(1,0,PWMMode.default,0,100)
 for i in range(2,ROW1*ROW2):
     rpwm.add(i,0)
 for i in range(ROW1*ROW2):
@@ -305,6 +304,7 @@ for i in range(ROW1*ROW2):
 pos_sens.setnext(0,1)
 pos_moon.setnext(4,0)
 #add_widgetlabelvalue(self, name, label, pos, getvalue=None, arg=None,p=None,s=None):
+#p=prefix, s=suffix
 if 'W10' in sen.sensors.keys():
     suw.add_widgetlabelvalue("W1T0", "{0:} W10: ".format(S_THERMO),pos_sens, get_w1, 0,"W10 "+S_THERMO)
     pos_sens.nextpos()
@@ -331,7 +331,7 @@ if not a_nomoon:
 
 
 def update_datetime():
-    scr.addstr(pos_datetime.y, pos_datetime.x, "{0:}".format(datetime.now().strftime('%Y-%m-%d  –  %H:%M:%S')))
+    pos_datetime.draw("{0:}".format(datetime.now().strftime('%Y-%m-%d  –  %H:%M:%S')))
 
 
 suw.focus("PWM0")
@@ -340,7 +340,7 @@ counter = 0
 
 def update():
     global counter
-    scr.addstr(pos_status.y, pos_status.x,S_UPDATE)
+    pos_status.draw(S_UPDATE)
     update_datetime()
     scr.refresh()
     for i in range(ROW1*ROW2):
@@ -352,7 +352,8 @@ def update():
         get_w1('r')
         counter = 0
     suw.update_all()
-    scr.addstr(pos_status.y, pos_status.x,S_OK)
+    pos_status.draw(S_OK)
+#    scr.addstr(pos_status.y, pos_status.x,S_OK)
     scr.refresh()
 
 
