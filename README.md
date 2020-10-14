@@ -62,6 +62,12 @@ connect it to i2c1
 
 `python3 -m pip install -r requirements.txt`
 
-`python3 pigro.py`
 
+`python3 pigro.py` 
+
+Start with pwm0 reranged (0-80) & reversed (inverse) signal
+`python3 pigro.py -rere` 
+
+Start without showing moon
+`python3 pigro.py -nomoon`
 ![Screenshot](img_pigro.png)
