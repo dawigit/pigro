@@ -6,27 +6,42 @@ NOAUTO = False
 ROW1 = 4
 ROW2 = 1
 import sys
-from base import BaseUtil
-import time               # Import time library
-from datetime import datetime
-import locale
-import os
-import yaml
-import Adafruit_PCA9685
-import threading
-from threading import Timer
-from sensors import sen
-from sensors import W1
-from pwm import PWM,PWMMode,rpwm
 
 a_rere = False
 a_nomoon = False
+a_noinit = False
 if len(sys.argv) > 1:
     for a in sys.argv:
         if a == '-rere':
             a_rere = True
         elif a == '-nomoon':
             a_nomoon = True
+        elif a == '-noinit':
+            a_noinit = True
+
+from base import *
+import Adafruit_PCA9685
+from pwm import PWM,PWMMode,PWM9685
+
+import time               # Import time library
+from datetime import datetime
+import locale
+import os
+import yaml
+import threading
+from threading import Timer
+from sensors import sen,W1,Sensor
+#from sensors import W1
+
+rpwm = PWM9685(a_noinit)
+
+con = Control()
+numrules = 0
+rulemode = False
+rulename = None
+seditrule = None
+slsw = []
+
 
 if len(sen.sensors) == 0:
     NOAUTO = True
@@ -52,7 +67,7 @@ K_UPDATE_COUNTER = 5 # sensors are read every 5th update
 K_AUTO_TEMP = 31
 K_MAINTENANCE_LIGHT = 20    #pwm value for maintenance mode
 
-w = Widget(WPos(-1,-1),[WLabel('0')])
+#w = Widget(WPos(-1,-1),[WLabel('0')])
 m = '🌞'
 
 
@@ -122,7 +137,7 @@ daynightmodelist = ["12/12 🌼","18/6 🌿"]
 daynightmode = 0
 
 DEV = True
-UFREQ = 5
+UFREQ = 1
 MAINTENANCETIME = 20
 power_on = [False]*16
 maintenance = [False]*16
@@ -131,7 +146,7 @@ maintenance_pwm = [20]*16
 lastmaintenance = [None]*16
 
 
-pg = WPos(79,32)
+pg = WPos(79,40)
 pos_pigro = WPos(6,2)
 pos_status = WPos(2,2)
 pos_datetime = WPos(40,2)
@@ -220,6 +235,10 @@ def set_pwmreversed(index,value,selected=None):
 
 
 suw = SuWidget()
+suwa = None
+quit_suwa = False
+suwer = None
+quit_suwer = False
 config = {}
 try:
     file = open(r'./config.yaml', 'r')
@@ -227,7 +246,6 @@ try:
         config = yaml.load(file, Loader=yaml.FullLoader)
         if a_rere :
             config['PWM0INV'] = 1
-
 except:
     # default config
     config['pwm'] = rpwm.get_config()
@@ -298,6 +316,7 @@ rpwm.add(1,0,PWMMode.default,0,100)
 for i in range(2,ROW1*ROW2):
     rpwm.add(i,0)
 for i in range(ROW1*ROW2):
+    rpwm.enable(i)
     suw.set_onchange("PWM"+str(i),wpwm_change,i)
     suw.set_onchange("PWM"+str(i)+"INV",set_pwmreversed,i)
 
@@ -327,6 +346,17 @@ if not a_nomoon:
     pos_moon.nextpos()
     suw.add_widgetlabelvalue("MOONPHASE", " ", pos_moon, getphase,None,"/ ")
 
+map = dict()
+for i in range(ROW1*ROW2):
+    map['PWM'+str(i)] = suw.W('PWM'+str(i))
+for k in list(sen.sensors.keys()):
+    if sen.sensors[k].valueisdict == True:
+        for vk in sen.sensors[k].value.keys():
+            map[k+'@'+vk] = sen.sensors[k]
+    else:
+        map[k] = sen.sensors[k]
+if 'rules' in config:
+    con.importrules(config['rules'],map)
 
 
 
@@ -351,9 +381,10 @@ def update():
         get_hih('r')    #read new values from sensors
         get_w1('r')
         counter = 0
+    for k in list(con.rules.keys()):
+        con.rid(k)
     suw.update_all()
     pos_status.draw(S_OK)
-#    scr.addstr(pos_status.y, pos_status.x,S_OK)
     scr.refresh()
 
 
@@ -388,24 +419,250 @@ def setMaintenance(i):
 def save():
     configsave = suw.get_config()
     configsave['pwm'] = rpwm.get_config()
+    configsave['rules'] = exportrules()
 
     with open(r'./config.yaml', 'w') as file:
         config = yaml.dump(configsave, file)
+
+def strrule(k):
+    dd = ''
+    for r in con.rules[k]:
+        if len(dd):
+            dd+=' '
+        if isinstance(r.value,Widget):
+            dd+=r.value.name
+        elif isinstance(r.value,Sensor):
+            if r.index is not None:
+                dd+=r.value.name+'@'+str(r.index)
+            else:
+                dd+=r.value.name
+        elif type(r.value) is str:
+            dd+=r.value
+        else:
+            dd+=str(r.value)
+    return dd
+
+def addrule(suwa,edit=None):
+    global numrules,rulemode,seditrule,slsw,rulename
+    if edit is not None:
+        rulename = edit
+        seditrule = strrule(edit)
+        con.edit_rule(rulename)
+    else:
+        seditrule = ''
+        rulename = 'RULE'+str(len(list(con.rules.keys())))
+        con.new_rule(rulename)
+    #y, x = scr.getmaxyx()
+    lp = WPos(2,1)
+    suwa.add_widgetlabel('ARULE','',lp)
+    p = WPos(1,2)
+    p.setnext(12,0)
+
+    sle = ['EXIT','INPUT','->','DEL','ENTER']
+    sls = list(sen.sensors.keys())
+    slsw = list()
+    slt = ['UP','DOWN']
+    for i in range(len(sls)):
+        if sen.sensors[sls[i]].valueisdict:
+            vkeys = list(sen.sensors[sls[i]].value.keys())
+            for k in vkeys:
+                slsw.append(sls[i]+'@'+k)
+        else:
+            slsw.append(sls[i])
+    slo = list(ops.keys())
+    sld = list()
+    for i in range(ROW1*ROW2):
+        sld.append('PWM'+str(i))
+    sl = [sle,slsw,slo,sld,slt]
+    for i in range(len(sl)):
+        suwa.add_widgetselect(rulename+'_'+str(i), sl[i], p, WMode.Frame)
+        suwa.set_onchange(rulename+'_'+str(i), selectrule)
+        p.nextpos()
+    suwa.focus(rulename+'_'+str(0))
+    suwa.touchwin()
+    if seditrule != '':
+        wsadd(suwa.scr,1,3,suwa.spacer(72))
+        wsadd(suwa.scr,1,3,seditrule)
+    suwa.refresh()
+
+def selectrule(index,value,selected):
+    global rulemode,numrules,seditrule,quit_suwa,slsw,rulename
+    if value == 'EXIT':
+        quit_suwa = True
+        return
+    elif value == 'INPUT':
+        w = 9
+        pi = WPos(5+len(seditrule),21)
+        win = curses.newwin(1, w-1, pi.y, pi.x)
+        suw.rect(pi.x-1,pi.y-1,w,2)
+        scr.refresh()
+        curses.curs_set(1)
+        box = Textbox(win)
+        box.edit()
+        m = box.gather()
+        curses.curs_set(0)
+        value = m.strip()
+        if len(value):
+            con.add_object(value)
+        suw.cleardraw(pi.x-1,pi.y-1,w,2)
+        del win
+        scr.refresh()
+    elif value == 'DEL':
+        if len(seditrule):
+            if ' ' in seditrule:
+                seditrule = seditrule.rsplit(' ', 1)[0]
+            else:
+                seditrule = ''
+            con.del_last()
+        value = None
+    elif value == 'ENTER':
+        if len(seditrule):
+            if len(con.rules) > 0 and rulename in list(con.rules.keys()):
+                r = con.rules[rulename]
+            else:
+                r = con.editrule
+                if '->' in r:
+                    con.add_rule()
+                    con.rid(rulename)
+        quit_suwa = True
+        return
+    elif value in list(slsw):
+        if '@' in value:
+            vs = value.split('@')
+            con.add_object(sen.sensors[vs[0]],vs[1])
+        else:
+            con.add_object(sen.sensors[value])
+    elif value in ['->']:
+        con.add_object(value)
+    elif value in list(ops.keys()):
+        con.add_object(value)
+    elif value in ['UP','DOWN']:
+        con.add_object(value)
+    elif 'PWM' in value:
+        con.add_object(suw.W(value))
+    if value is not None:
+        seditrule += ' '+value
+    wsadd(suwa.scr,1,3,suwa.spacer(70))
+    wsadd(suwa.scr,1,3,seditrule)
+    suwa.refresh()
+
+def addrule_exit():
+    rulemode = False
+    rw = list(suwa._wlist.keys())
+    for w in rw:
+        if 'RULE' in w:
+            suwa.next()
+            suwa.del_widget(w)
+    rulename = None
+
+def redraw():
+    scr.clear();
+    suw.rect(0, 0, 79, 40)
+    update()
+
+def edit_rule(arg,value,selected):
+    global quit_suwer,seditrule,rulename
+    #quit_suwer = True
+    if selected == 0:
+        suwer_onoff()
+        return
+    seditrule = value
+    rulename = list(con.rules.keys())[selected-1]
+    suwer_onoff()
+    suwa_onoff()
+
+def edit_rules(suwer):
+    lp = WPos(1,1)
+    d = ['QUIT']
+    for k in list(con.rules.keys()):
+        d.append(strrule(k))
+    suwer.add_widgetselect('SUWER',d,lp,WMode.Frame)
+    suwer.set_onchange('SUWER',edit_rule)
+    suwer.focus('SUWER')
+    suwer.touchwin()
+    suwer.refresh()
+
+def exportrules():
+    x = []
+    for rule in list(con.rules.keys()):
+        rs = ''
+        ru = con.rules[rule]
+        for r in ru:
+            if rs != '':
+                rs += ' '
+            if isinstance(r.value,ControlObject):
+                n = r.value.name
+                if r.index is not None:
+                    n+='@'+r.index
+                rs+=n
+            elif isinstance(r.value,Widget):
+                n = r.value.name
+                rs+=n
+            else:
+                v = r.value
+                rs += str(v)
+        x.append(rs)
+    return x
+
+
+def suwa_onoff():
+    global suwa,quit_suwa,rulename
+    if quit_suwa is True:
+        rulename = None
+    if suwa is None:
+        suwa = SuWidget(1,20,77,20)
+        suwa.frame()
+        if rulename is not None:
+            addrule(suwa,rulename)
+        else:
+            addrule(suwa)
+    else:
+        del suwa.scr
+        del suwa
+        suwa = None
+        quit_suwa = False
+        rulename = None
+        suw.refresh()
+
+def suwer_onoff():
+    global suwer,quit_suwer
+    if suwer is None:
+        suwer = SuWidget(1,16,77,20)
+        suwer.frame()
+        edit_rules(suwer)
+    else:
+        del suwer.scr
+        del suwer
+        suwer = None
+        quit_suwer = False
+        suw.refresh()
+
 
 timed_update()
 update()
 key = ''
 while key != ord('q'):
+    if quit_suwa == True:
+        suwa_onoff()
+    if quit_suwer == True:
+        suwer_onoff()
+
     key = scr.getch()
-    suw.onkeyboard(key)
+    if suwa is not None:
+        suwa.onkeyboard(key)
+        suwa.refresh()
+    elif suwer is not None:
+        suwer.onkeyboard(key)
+        if suwer:
+            suwer.refresh()
+    else:
+        suw.onkeyboard(key)
     if key == ord(' '):
         timed_update()
     if key == ord('t'):
         timed_update()
     if key == ord('r'):
-        scr.clear();
-        suw.rect(0, 0, 79, 40)
-        update()
+        redraw()
     if key == ord('s'):
         save()
     for i in range(4):
@@ -417,7 +674,13 @@ while key != ord('q'):
                 suw._wlist['PWM'+str(i)].change_symbol('default')
             maintenance[i] = not maintenance[i]
             update()
-
+    if key == ord('a'):
+        rulename = None
+        if suwer is None:
+            suwa_onoff()
+    if key == ord('e'):
+        if suwa is None:
+            suwer_onoff()
 save()
 suw.quit()
 lasttimer.cancel()
