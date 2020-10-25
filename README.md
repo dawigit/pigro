@@ -1,12 +1,32 @@
 # PiGro #
 
+Added 'rules' !
+
+show add-rules dialog with hotkey 'a'
+
+![Screenshot](rules1sm.png)
+![Screenshot](rules2sm.png)
+
+hotkey 'e' shows edit-rules selector
+
+![Screenshot](rules3sm.png)
+
+other hotkeys
+
+- 's' : save config
+- SPACE : update
+- 'r' : redraw
+- 'q' : quit
+- '1'-'4' : maintenance mode for PWM0-3
+- cursor left/right : next/previos widget
+- cursor up/down : change value/cursor position
+
 ![Screenshot](pigro_compact.png)
 
 ## PiGro allows you to: ##
 
 - read thermal & humidity sensors
 - control pwm driven fans and led drives
-- switch between 12/12 and 18/6 cycle
 - maintenance mode for better eye protection from strong light sources
 - automatically turn the light on and off
 - automatically change power of led and out fan upon sensor values
