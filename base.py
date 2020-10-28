@@ -139,45 +139,6 @@ class ControlObject():
             return self.value > other
 
 
-def ret(s):
-    if type(s) is bool:
-        return s
-    s = str(s)
-
-    if s.isdigit():
-        return float(s)
-    if '.' in s:
-        nodot = s.replace('.','')
-        if nodot.isdigit():
-            return float(s)
-    for cc in (['<','>','=','<=','>=','!='],['*','/'],['-','+']):
-        for c in cc:
-            left, op, right = s.partition(c)
-            #if left is None:
-            #    return None
-            #if right is None:
-            #    return None
-            if op == '*':
-                return ret(left) * ret(right)
-            elif op == '/':
-                return ret(left) / ret(right)
-            elif op == '+':
-                return ret(left) + ret(right)
-            elif op == '-':
-                return ret(left) - ret(right)
-            elif op == '<':
-                return ret(left) < ret(right)
-            elif op == '>':
-                return ret(left) > ret(right)
-            elif op == '<=':
-                return ret(left) <= ret(right)
-            elif op == '>=':
-                return ret(left) >= ret(right)
-            elif op == '=':
-                return ret(left) == ret(right)
-            elif op == '=!':
-                return ret(left) != ret(right)
-
 class Rule():
     def __init__(self,value,index=None):
         self.value = value
@@ -248,13 +209,8 @@ class Control():
                 s+=str(o.value[o.index])
             else:
                 s+=str(o.value)
-        se = re.findall('\([^\(].+?\)',s)
-        for sr in se:
-            srr = ret(sr[1:-1])
+        cond = eval(s)
 
-            s = s.replace(sr,str(srr))
-
-        cond = ret(s)
         if cond == True:
             target = None
             for c in cseq:
