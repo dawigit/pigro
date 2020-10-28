@@ -1,33 +1,34 @@
 #!/usr/bin/env python3
 from enum import Flag, auto
+import re
 
 class OpList(Flag):
     add = auto()
     sub = auto()
     mul = auto()
     div = auto()
-    openbr = auto()
-    closebr = auto()
+    opp = auto()
+    clp = auto()
     lt = auto()
     le = auto()
     eq = auto()
     ne = auto()
     ge = auto()
     gt = auto()
-    med = auto()
-    sum = auto()
 
 ops = {
+        '(': OpList.opp,
+        ')': OpList.clp,
+        '*': OpList.mul,
+        '/': OpList.div,
+        '+': OpList.add,
+        '-': OpList.sub,
         '<': OpList.lt,
         '>': OpList.gt,
         '=': OpList.eq,
         '!=': OpList.ne,
         '<=': OpList.le,
         '>=': OpList.ge,
-        '+': OpList.add,
-        '-': OpList.sub,
-        '*': OpList.mul,
-        '/': OpList.div,
         }
 
 
@@ -80,7 +81,7 @@ class ControlObject():
         self.value = None
     def __getitem__(self,index):
         if index is not None:
-            return str(self.value[index])
+            return self.value[index]
         else:
             return self.value
     def __repr__(self):
@@ -142,15 +143,20 @@ def ret(s):
     if type(s) is bool:
         return s
     s = str(s)
+
     if s.isdigit():
         return float(s)
     if '.' in s:
         nodot = s.replace('.','')
         if nodot.isdigit():
             return float(s)
-    for cc in (['*','/'],['-','+'],['<','>','=','<=','>=','!=']):
+    for cc in (['<','>','=','<=','>=','!='],['*','/'],['-','+']):
         for c in cc:
             left, op, right = s.partition(c)
+            #if left is None:
+            #    return None
+            #if right is None:
+            #    return None
             if op == '*':
                 return ret(left) * ret(right)
             elif op == '/':
@@ -179,14 +185,15 @@ class Rule():
     def __getitem__(self,index):
         return self.value[index]
     def __repr__(self):
-        if type(self.value) is not str:
-            r = self.value
-            return str(r.value)
-        r = self.value
-        return str(r)
+        if type(self.value) is float:
+            return str(self.value)
+        else:
+            return self.value
     def __eq__(self,other):
         if self.index is not None:
-            return str(self.value[self.index]) == other
+            v = self.value[self.index]
+            return str(v) == other
+            #return str(self.value,self.index) == other
         else:
             return str(self.value) == other
 
@@ -195,6 +202,7 @@ class Control():
         self.rules = {}
         self.edittrule = None
         self.editname = None
+        self.editbackup = None
     def add_object(self,o,i=None):
         self.editrule.append(Rule(o,i))
     def del_last(self):
@@ -206,6 +214,8 @@ class Control():
     def edit_rule(self,rulename):
         self.editrule = self.rules[rulename]
         self.editname  = rulename
+        self.editbackup = self.rules[rulename]
+        del self.rules[rulename]
     def add_rule(self):
         self.rules[self.editname] = self.editrule
     def del_rule(self,rulename):
@@ -226,8 +236,6 @@ class Control():
                     self.add_object(r)
             self.add_rule()
             i+=1
-            #add importhelper (with maps of DEVICENAMES)
-            # so import knows what is objects/values
 
     def rid(self,rulename):
         r = self.rules[rulename]
@@ -240,6 +248,12 @@ class Control():
                 s+=str(o.value[o.index])
             else:
                 s+=str(o.value)
+        se = re.findall('\([^\(].+?\)',s)
+        for sr in se:
+            srr = ret(sr[1:-1])
+
+            s = s.replace(sr,str(srr))
+
         cond = ret(s)
         if cond == True:
             target = None

@@ -20,12 +20,12 @@ class Sensor(base.ControlObject):
     def read(self):
         None
     def __repr__(self):
-        return self
+        return str(self.value)
     def __getitem__(self,index):
-        if index is not None:
-            return str(self.value[index])
-        else:
-            return str(self.value)
+        #if index is not None:
+        return self.value[index]
+#        else:
+#            return str(self.value)
 
 class W1(Sensor):
     def __init__(self,w1,name=None):

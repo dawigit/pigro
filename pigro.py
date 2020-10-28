@@ -469,7 +469,8 @@ def addrule(suwa,edit=None):
                 slsw.append(sls[i]+'@'+k)
         else:
             slsw.append(sls[i])
-    slo = list(ops.keys())
+    #slo = list(ops.keys())
+    slo = ['<','>','=','(','+',')','/','<=','>=','!=','-','*']
     sld = list()
     for i in range(ROW1*ROW2):
         sld.append('PWM'+str(i))
@@ -503,7 +504,7 @@ def selectrule(index,value,selected):
         curses.curs_set(0)
         value = m.strip()
         if len(value):
-            con.add_object(value)
+            con.add_object(float(value))
         suw.cleardraw(pi.x-1,pi.y-1,w,2)
         del win
         scr.refresh()
