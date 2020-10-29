@@ -200,6 +200,8 @@ class Control():
 
     def rid(self,rulename):
         r = self.rules[rulename]
+        if len(r) == 0:
+            return
         if r.index('->') is not None:
             rs = r[:r.index('->')]
             cseq = r[r.index('->')+1:]
@@ -208,7 +210,15 @@ class Control():
             if o.index is not None:
                 s+=str(o.value[o.index])
             else:
-                s+=str(o.value)
+                if hasattr(o.value,'get_selected_value'):
+                    s+=str(o.value.get_selected_value())
+                else:
+                    st = str(o.value)
+                    if st in ['and','or']:
+                        s+=' '+st+' '
+                    else:
+                        s+=st
+
         cond = eval(s)
 
         if cond == True:

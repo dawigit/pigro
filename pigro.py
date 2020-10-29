@@ -41,6 +41,7 @@ rulemode = False
 rulename = None
 seditrule = None
 slsw = []
+slo = []
 
 
 if len(sen.sensors) == 0:
@@ -132,9 +133,6 @@ K_DHTT = 2
 K_PWM_OUT = 15
 
 truefalselist = ["False","True "]
-pwmreversed = 0
-daynightmodelist = ["12/12 🌼","18/6 🌿"]
-daynightmode = 0
 
 DEV = True
 UFREQ = 1
@@ -158,7 +156,11 @@ pos_clock = WPos(13,11)
 
 
 def wpwm_change(index,value,selected):
-    rpwm.set(index,value)
+    global maintenance,maintenance_pwm
+    if maintenance[index] is False:
+        rpwm.set(index,value)
+    else:
+        rpwm.set(index,maintenance_pwm[index])
 
 def check_onoff(port=0):
     global power_on,maintenance,maintenance_pwm
@@ -202,9 +204,9 @@ def get_dht(m):
         if m == 'r':
             value = sen.sensors['DHT'].read()
         if m == 'h':
-            return str.format("{0:3.2f} %",value['h'])
+            return str.format("{0:3.2f} %",sen.sensors['DHT'].value['h'])
         if m == 'c':
-            return str.format("{0:3.2f} °C",value['c'])
+            return str.format("{0:3.2f} °C",sen.sensors['DHT'].value['c'])
     else:
         return 'N/A'
 
@@ -319,6 +321,7 @@ for i in range(ROW1*ROW2):
     rpwm.enable(i)
     suw.set_onchange("PWM"+str(i),wpwm_change,i)
     suw.set_onchange("PWM"+str(i)+"INV",set_pwmreversed,i)
+    #suw.W("PWM"+str(i)).locked = maintenance[i]
 
 pos_sens.setnext(0,1)
 pos_moon.setnext(4,0)
@@ -355,14 +358,14 @@ for k in list(sen.sensors.keys()):
             map[k+'@'+vk] = sen.sensors[k]
     else:
         map[k] = sen.sensors[k]
+# add to map so the strings can be evaled
+#map['and'] = ' and '
+#map['or'] = ' or '
 if 'rules' in config:
     con.importrules(config['rules'],map)
 
-
-
 def update_datetime():
     pos_datetime.draw("{0:}".format(datetime.now().strftime('%Y-%m-%d  –  %H:%M:%S')))
-
 
 suw.focus("PWM0")
 
@@ -378,16 +381,14 @@ def update():
     counter += 1
     if counter == K_UPDATE_COUNTER:
         get_dht('r')
-        get_hih('r')    #read new values from sensors
-        get_w1('r')
         counter = 0
+    get_hih('r')    #read new values from sensors
+    get_w1('r')
     for k in list(con.rules.keys()):
         con.rid(k)
     suw.update_all()
     pos_status.draw(S_OK)
     scr.refresh()
-
-
 
 def timed_update():
     update()
@@ -443,7 +444,7 @@ def strrule(k):
     return dd
 
 def addrule(suwa,edit=None):
-    global numrules,rulemode,seditrule,slsw,rulename
+    global numrules,rulemode,seditrule,slsw,slo,rulename
     if edit is not None:
         rulename = edit
         seditrule = strrule(edit)
@@ -470,7 +471,7 @@ def addrule(suwa,edit=None):
         else:
             slsw.append(sls[i])
     #slo = list(ops.keys())
-    slo = ['<','>','=','(','+',')','/','<=','>=','!=','-','*']
+    slo = ['<','>','=','(','+',')','/','<=','>=','!=','-','*','and','or']
     sld = list()
     for i in range(ROW1*ROW2):
         sld.append('PWM'+str(i))
@@ -487,7 +488,7 @@ def addrule(suwa,edit=None):
     suwa.refresh()
 
 def selectrule(index,value,selected):
-    global rulemode,numrules,seditrule,quit_suwa,slsw,rulename
+    global rulemode,numrules,seditrule,quit_suwa,slsw,slo,rulename
     if value == 'EXIT':
         quit_suwa = True
         return
@@ -535,8 +536,11 @@ def selectrule(index,value,selected):
             con.add_object(sen.sensors[value])
     elif value in ['->']:
         con.add_object(value)
-    elif value in list(ops.keys()):
-        con.add_object(value)
+    elif value in list(slo):
+        if value in ['and','or']:
+            con.add_object(' '+str(value)+' ')
+        else:
+            con.add_object(value)
     elif value in ['UP','DOWN']:
         con.add_object(value)
     elif 'PWM' in value:
@@ -674,6 +678,7 @@ while key != ord('q'):
             else:
                 suw._wlist['PWM'+str(i)].change_symbol('default')
             maintenance[i] = not maintenance[i]
+            suw.W('PWM'+str(i)).locked = maintenance[i]
             update()
     if key == ord('a'):
         rulename = None

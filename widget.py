@@ -200,6 +200,7 @@ class Widget(BaseWidget):
             self.labels.append(labels)
         elif type(labels) is list:
             self.labels = labels
+        self.locked = False
 
     def focus(self):
         self.focused = True
@@ -327,10 +328,12 @@ class WidgetRoller(Widget):
         self.draw()
 
     def up(self):
-            self.movecursor(1)
+            if self.locked is False:
+                self.movecursor(1)
 
     def down(self):
-            self.movecursor(-1)
+            if self.locked is False:
+                self.movecursor(-1)
 
     def onkeyboard(self,key):
         if key == ord('d'):
@@ -435,9 +438,11 @@ class WidgetSelect(Widget):
             self.onchange(self.arg,self.data[self.selected],self.selected)
 
     def up(self):
+        if self.locked is False:
             self.movecursor(1)
 
     def down(self):
+        if self.locked is False:
             self.movecursor(-1)
 
     def onkeyboard(self,key):
