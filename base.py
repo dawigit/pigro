@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 from enum import Flag, auto
-import re
+from datetime import datetime
+from math import trunc
+#import re
+
+S_CLOCK = "⏰"
 
 class OpList(Flag):
     add = auto()
@@ -148,6 +152,8 @@ class Rule():
     def __repr__(self):
         if type(self.value) is float:
             return str(self.value)
+        elif type(self.value) is int:
+            return str(self.value)
         else:
             return self.value
     def __eq__(self,other):
@@ -216,9 +222,24 @@ class Control():
                     st = str(o.value)
                     if st in ['and','or']:
                         s+=' '+st+' '
+                    elif S_CLOCK in st:
+                        tv = []
+                        for sts in st[1:].split('-'):
+                            if ':' in sts:
+                                tv.append(int(sts.split(':')[0])*60+int(sts.split(':')[1]))
+                            else:
+                                tv.append(int(sts)*60)
+                        t = datetime.now()
+                        tnow = t.hour*60+t.minute
+                        if len(tv) == 2:
+                            if tv[1] < tv[0]:
+                                tv[1]+=24*60
+                            if tnow >= tv[0] and tnow <= tv[1]:
+                                s+=' True '
+                            else:
+                                s+=' False '
                     else:
                         s+=st
-
         cond = eval(s)
 
         if cond == True:
@@ -229,5 +250,14 @@ class Control():
                         target.up()
                     if c == 'DOWN':
                         target.down()
+                    cd = float(c.value)
+                    cd = int(float(cd))
+                    #if cd.isdigit():
+                    target.set(int(cd/10))
+                    #elif '.' in cd:
+                    #    cd = cd.replace('.','')
+                    #    if cd.isdigit():
+                    #        cd = int(float(c.value))
+                    #        target.set(int(cd/10))
                 else:
                     target = c.value

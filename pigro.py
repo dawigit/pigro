@@ -459,7 +459,7 @@ def addrule(suwa,edit=None):
     p = WPos(1,2)
     p.setnext(12,0)
 
-    sle = ['EXIT','INPUT','->','DEL','ENTER']
+    sle = ['EXIT','INPUT',S_CLOCK,'->','DEL','ENTER']
     sls = list(sen.sensors.keys())
     slsw = list()
     slt = ['UP','DOWN']
@@ -493,21 +493,21 @@ def selectrule(index,value,selected):
         quit_suwa = True
         return
     elif value == 'INPUT':
-        w = 9
-        pi = WPos(5+len(seditrule),21)
-        win = curses.newwin(1, w-1, pi.y, pi.x)
-        suw.rect(pi.x-1,pi.y-1,w,2)
-        scr.refresh()
-        curses.curs_set(1)
-        box = Textbox(win)
-        box.edit()
-        m = box.gather()
-        curses.curs_set(0)
-        value = m.strip()
+        value = suwa.input(5,21,9,1,True)
         if len(value):
-            con.add_object(float(value))
-        suw.cleardraw(pi.x-1,pi.y-1,w,2)
-        del win
+            if '.' in value:
+                con.add_object(value)
+            if value.isdigit():
+                con.add_object(value)
+        scr.refresh()
+    elif value == S_CLOCK:
+        tr = suwa.input(5,21,16,1,True)
+        if '-' in tr:
+            value = S_CLOCK+tr
+        else:
+            value = None
+        if value is not None:
+            con.add_object(str(value))
         scr.refresh()
     elif value == 'DEL':
         if len(seditrule):
@@ -518,14 +518,9 @@ def selectrule(index,value,selected):
             con.del_last()
         value = None
     elif value == 'ENTER':
-        if len(seditrule):
-            if len(con.rules) > 0 and rulename in list(con.rules.keys()):
-                r = con.rules[rulename]
-            else:
-                r = con.editrule
-                if '->' in r:
-                    con.add_rule()
-                    con.rid(rulename)
+        if '->' in seditrule:
+            con.add_rule()
+            con.rid(rulename)
         quit_suwa = True
         return
     elif value in list(slsw):

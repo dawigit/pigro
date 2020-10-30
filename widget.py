@@ -335,6 +335,11 @@ class WidgetRoller(Widget):
             if self.locked is False:
                 self.movecursor(-1)
 
+    def set(self,index):
+            if self.locked is False:
+                self.cursorposition = index
+                self.movecursor(0)
+
     def onkeyboard(self,key):
         if key == ord('d'):
             self.draw()
@@ -444,6 +449,12 @@ class WidgetSelect(Widget):
     def down(self):
         if self.locked is False:
             self.movecursor(-1)
+
+    def set(self,index):
+            if self.locked is False:
+                self.cursorposition = index
+                self.movecursor(0)
+
 
     def onkeyboard(self,key):
         if key == ord('d'):
@@ -636,7 +647,27 @@ class SuWidget():
     def touchwin(self):
         self.scr.touchwin()
     def cleardraw(self,x,y,w,h):
-        for ay in range(h + 1):
-            wsadd(self.scr, y + ay, x, self.spacer(w + 1),1)
+        for ay in range(h):
+            sadd(y + ay, x, self.spacer(w),1)
     def frame(self):
         wrect(self.scr,0,0,self.w-2,self.h-2)
+
+    def input(self,x,y,w,h,frame=False):
+        f = 0
+        if frame is True:
+            f = 1
+        pi = WPos(x,y)
+        win = curses.newwin(h, w, pi.y, pi.x)
+        if frame is True:
+            rect(pi.x-1,pi.y-1,w+1,h+1)
+        scr.refresh()
+        curses.curs_set(1)
+        box = Textbox(win)
+        box.edit()
+        m = box.gather()
+        curses.curs_set(0)
+        value = m.strip()
+        self.cleardraw(pi.x-1, pi.y-1, w+2, h+2)
+        del(win)
+        self.refresh()
+        return value
