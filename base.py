@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 from enum import Flag, auto
 from datetime import datetime
-from math import trunc
-#import re
+import re
 
 S_CLOCK = "⏰"
 
@@ -233,14 +232,21 @@ class Control():
                         tnow = t.hour*60+t.minute
                         if len(tv) == 2:
                             if tv[1] < tv[0]:
-                                tv[1]+=24*60
+                                tv[1]+=(24*60)
                             if tnow >= tv[0] and tnow <= tv[1]:
                                 s+=' True '
                             else:
                                 s+=' False '
                     else:
                         s+=st
-        cond = eval(s)
+
+        se = re.findall('\([^\(].+?\)',s)
+        for sr in se:
+            srr = ret(sr[1:-1])
+
+            s = s.replace(sr,str(srr))
+        cond = ret(s)
+
 
         if cond == True:
             target = None
@@ -248,16 +254,54 @@ class Control():
                 if type(c.value) is str and target is not None:
                     if c == 'UP':
                         target.up()
-                    if c == 'DOWN':
+                    elif c == 'DOWN':
                         target.down()
-                    cd = float(c.value)
-                    cd = int(float(cd))
-                    #if cd.isdigit():
-                    target.set(int(cd/10))
-                    #elif '.' in cd:
-                    #    cd = cd.replace('.','')
-                    #    if cd.isdigit():
-                    #        cd = int(float(c.value))
-                    #        target.set(int(cd/10))
+                    else:
+                        cd = float(c.value)
+                        cd = int(float(cd))
+                        target.set(int(cd/10))
                 else:
                     target = c.value
+
+def ret(s):
+    if type(s) is bool:
+        return s
+    s = str(s)
+
+    if s.isdigit():
+        return float(s)
+    if '.' in s:
+        nodot = s.replace('.','')
+        if nodot.isdigit():
+            return float(s)
+    for cc in (['AND','OR'],['<','>','=','<=','>=','!='],['*','/'],['-','+']):
+        for c in cc:
+            left, op, right = s.partition(c)
+            #if left is None:
+            #    return None
+            #if right is None:
+            #    return None
+            if op == '*':
+                return ret(left) * ret(right)
+            elif op == '/':
+                return ret(left) / ret(right)
+            elif op == '+':
+                return ret(left) + ret(right)
+            elif op == '-':
+                return ret(left) - ret(right)
+            elif op == '<':
+                return ret(left) < ret(right)
+            elif op == '>':
+                return ret(left) > ret(right)
+            elif op == '<=':
+                return ret(left) <= ret(right)
+            elif op == '>=':
+                return ret(left) >= ret(right)
+            elif op == '=':
+                return ret(left) == ret(right)
+            elif op == '=!':
+                return ret(left) != ret(right)
+            elif op == 'AND':
+                return ret(left) and ret(right)
+            elif op == 'OR':
+                return ret(left) or ret(right)

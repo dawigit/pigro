@@ -266,9 +266,10 @@ except:
 suw.rect(0, 0, 79, 40)
 suw.add_widgetlabel("PIGRO", L_PIGRO, pos_pigro)
 p = WPos(6,4)
+#leading symbols for PWMn
 wsl = {'default':S_LAMP,'busy':S_WRENCH,'off':S_SLEEP}
 wsf = {'default':S_FAN,'busy':S_WRENCH,'off':S_SLEEP}
-wslist = [wsl,wsl,wsf,wsf]
+wslist = [wsl,wsf,wsf,wsf]
 slist = [S_LAMP,S_LAMP,S_FAN,S_FAN]
 for j in range(ROW2):
     for i in range(ROW1):
@@ -471,7 +472,7 @@ def addrule(suwa,edit=None):
         else:
             slsw.append(sls[i])
     #slo = list(ops.keys())
-    slo = ['<','>','=','(','+',')','/','<=','>=','!=','-','*','and','or']
+    slo = ['<','>','=','(','+',')','/','<=','>=','!=','-','*','AND','OR']
     sld = list()
     for i in range(ROW1*ROW2):
         sld.append('PWM'+str(i))
