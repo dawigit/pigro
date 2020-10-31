@@ -243,10 +243,8 @@ class Control():
         se = re.findall('\([^\(].+?\)',s)
         for sr in se:
             srr = ret(sr[1:-1])
-
             s = s.replace(sr,str(srr))
         cond = ret(s)
-
 
         if cond == True:
             target = None
@@ -264,9 +262,11 @@ class Control():
                     target = c.value
 
 def ret(s):
-    if type(s) is bool:
+    if type(s.strip()) is bool:
         return s
     s = str(s)
+    if s in [' True ', ' False ']:
+        return True if s == ' True ' else False
 
     if s.isdigit():
         return float(s)

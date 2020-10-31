@@ -494,7 +494,7 @@ def selectrule(index,value,selected):
         quit_suwa = True
         return
     elif value == 'INPUT':
-        value = suwa.input(5,21,9,1,True)
+        value = suwa.input(5+len(seditrule)+3,21,9,1,True)
         if len(value):
             if '.' in value:
                 con.add_object(value)
