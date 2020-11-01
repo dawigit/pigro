@@ -1,17 +1,8 @@
 # PiGro #
 
-Added 'rules' !
+![Screenshot](img_pigro.png)
 
-show add-rules dialog with hotkey 'a'
-
-![Screenshot](rules1sm.png)
-![Screenshot](rules2sm.png)
-
-hotkey 'e' shows edit-rules selector
-
-![Screenshot](rules3sm.png)
-
-other hotkeys
+hotkeys:
 
 - 's' : save config
 - SPACE : update
@@ -20,6 +11,10 @@ other hotkeys
 - '1'-'4' : maintenance mode for PWM0-3
 - cursor left/right : next/previos widget
 - cursor up/down : change value/cursor position
+- 'a' shows add-rules dialog
+- 'e' shows edit-rules selector
+- 'x' exports rules to file 'rules.yaml'
+- 'i' imports rules from file 'rules.yaml'
 
 ![Screenshot](pigro_compact.png)
 
@@ -46,7 +41,6 @@ other hotkeys
 - optional: converter [MOSFET IRF520+1kΩ resistor] for 5v pwm to 0-10v for non-pwm fans or Meanwell drivers 
   (so you can achive 0-100% light intensity, without only 0-50% is possible (but with better lm/w ratio and cooling)
 - Noctua PWM fan for outgoing air
-
 
 ## Installation: ##
 
@@ -82,6 +76,10 @@ connect it to i2c1
 
 `python3 -m pip install -r requirements.txt`
 
+Don't forget to add your user to 'i2c' group
+
+`sudo usermod -a -G i2c pi`
+
 
 Start pigro
 
@@ -98,5 +96,9 @@ Start without showing moon
 `python3 pigro.py -nomoon`
 
 
+![Screenshot](rules1sm.png)
 
-![Screenshot](img_pigro.png)
+![Screenshot](rules2sm.png)
+
+![Screenshot](rules3sm.png)
+
