@@ -43,6 +43,7 @@ seditrule = None
 slsw = []
 slo = []
 
+CC0 = 3
 
 if len(sen.sensors) == 0:
     NOAUTO = True
@@ -366,7 +367,7 @@ if 'rules' in config:
     con.importrules(config['rules'],map)
 
 def update_datetime():
-    pos_datetime.draw("{0:}".format(datetime.now().strftime('%Y-%m-%d  –  %H:%M:%S')))
+    pos_datetime.draw("{0:}".format(datetime.now().strftime('%Y-%m-%d  –  %H:%M:%S')),3)
 
 suw.focus("PWM0")
 

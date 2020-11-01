@@ -10,6 +10,16 @@ S_CLOCK = "⏰"
 #scr = None
 scr = curses.initscr()
 
+CC0 = 0
+CC1 = 1
+CC2 = 2
+CC3 = 3
+CC4 = 4
+CC5 = 5
+CC6 = 6
+CC7 = 7
+CC8 = 8
+
 class WMode(Flag):
     Default = auto()
     Frame = auto()
@@ -48,11 +58,11 @@ class WPos():
     def nextposy(self):
         self.lasty = self.y
         self.y += self.nexty
-    def draw(self,value):
+    def draw(self,value,c=0):
         if self.win is not None:
-            self.win.addstr(self.y,self.x,value)
+            self.win.addstr(self.y,self.x,value,c)
         else:
-            scr.addstr(self.y,self.x,value)
+            scr.addstr(self.y,self.x,value,c)
     def cloneplus(self,x,y):
         return WPos(self.x+x,self.y+y)
     def __add__(self,other):
@@ -147,21 +157,45 @@ def init():
     curses.init_pair(5, curses.COLOR_CYAN, curses.COLOR_BLUE)
     curses.init_pair(6, curses.COLOR_YELLOW, curses.COLOR_BLUE)
     scr.keypad(1)
-    ccolor = curses.color_pair(0)
+    ccolor = curses.color_pair(CC0)
     return scr
 
 def rect(x,y,w,h):
     global scr
     rectangle(scr,y,x,y+h,x+w)
 
-def wrect(win,x,y,w,h):
-    rectangle(win,y,x,y+h,x+w)
+def wrect(win,x,y,w,h,c=0):
+    #rectangle(win,y,x,y+h,x+w)
+    xrect(win,y,x,y+h,x+w,c)
 
-def sadd(y,x,v,w=0):
+def xrect(win, uly, ulx, lry, lrx, cc):
+    """Draw a rectangle with corners at the provided upper-left
+    and lower-right coordinates.
+    └┌┘┐─│
+    """
+    wvline(win, uly+1, ulx, '│', lry - uly - 1, cc)
+    whline(win, uly, ulx+1, '─', lrx - ulx - 1, cc)
+    whline(win, lry, ulx+1, '─', lrx - ulx - 1, cc)
+    wvline(win, uly+1, lrx, '│', lry - uly - 1, cc)
+    win.addstr(uly, ulx, '┌' , cc)
+    win.addstr(uly, lrx, '┐' , cc)
+    win.addstr(lry, lrx, '┘', cc)
+    win.addstr(lry, ulx, '└', cc)
+
+def wvline(win,y,x,c,l,cc):
+    for i in range(l):
+        win.addstr(y+i,x,c,cc)
+
+def whline(win,y,x,c,l,cc):
+    for i in range(l):
+        win.addstr(y,x+i,c,cc)
+
+
+def sadd(y,x,s,attr=0):
     global scr
-    scr.addstr(y,x,v,w)
-def wsadd(win,y,x,v,w=0):
-    win.addstr(y,x,v,w)
+    scr.addstr(y,x,s,attr)
+def wsadd(win,y,x,s,attr=0):
+    win.addstr(y,x,s,attr)
 
 h24 = []
 h24us = []
@@ -201,9 +235,13 @@ class Widget(BaseWidget):
         elif type(labels) is list:
             self.labels = labels
         self.locked = False
+        self.ccolor = 0
+        self.onfocus = None
 
     def focus(self):
         self.focused = True
+        if callable(self.onfocus):
+            self.onfocus()
 
     def unfocus(self):
         self.focused = False
@@ -212,6 +250,9 @@ class Widget(BaseWidget):
 
     def set_onunfocus(self,onunfocus):
         self.onunfocus = onunfocus
+
+    def set_onfocus(self,onfocus):
+        self.onfocus = onfocus
 
     def set_onchange(self,onchange,arg=None):
         self.onchange = onchange
@@ -249,7 +290,7 @@ class Widget(BaseWidget):
             if type(l) is WLabel:
                 if l.wvalue is not None:
                     l.update()
-            wsadd(self.win,self.pos.y+l.labelpos.y, self.pos.x+l.labelpos.x, l.value)
+            wsadd(self.win,self.pos.y+l.labelpos.y, self.pos.x+l.labelpos.x, l.value, 2)
     def onkeyboard(self,key):
         None
     def getconfig(self):
@@ -273,7 +314,7 @@ class WidgetRoller(Widget):
             selected = str(selected)
         self.selected = selected
         self.cursorposition = cursorposition
-        self.ccolor = curses.color_pair(0)
+        self.ccolor = curses.color_pair(CC0)
 
     def focus(self):
         super().focus()
@@ -287,20 +328,20 @@ class WidgetRoller(Widget):
 
     def draw(self):
         super().draw()
-        plusone = 1
-        if WMode.Frame in WMode(self.attributes):
-            wrect(self.win,self.pos.x,self.pos.y,self.w+1,self.h+1)
-        else:
-            plusone = 0
         cc = None
         cs = None
         if self.is_focus():
-            cc = curses.color_pair(4)
-            cs = curses.color_pair(6)
+            cc = curses.color_pair(CC4)
+            cs = curses.color_pair(CC6)
         else:
-            cc = curses.color_pair(0)
-            cs = curses.color_pair(5)
+            cc = curses.color_pair(CC0)
+            cs = curses.color_pair(CC5)
         self.ccolor = cc
+        plusone = 1
+        if WMode.Frame in WMode(self.attributes):
+            wrect(self.win,self.pos.x,self.pos.y,self.w+1,self.h+1,cc)
+        else:
+            plusone = 0
         for i in range(self.h):
             if self.cursorposition == self.selected:
                 self.ccolor = cs
@@ -384,7 +425,7 @@ class WidgetSelect(Widget):
         self.selected = selected
         self.cursorposition = int(cursorposition)
         self.margin = margin
-        self.ccolor = curses.color_pair(0)
+        self.ccolor = curses.color_pair(CC0)
 
         self.draw()
 
@@ -402,16 +443,16 @@ class WidgetSelect(Widget):
     def draw(self):
         global scr
         super().draw()
-        wrect(self.win, self.pos.x,self.pos.y,self.w+self.margin+2,self.h+1)
+        wrect(self.win, self.pos.x,self.pos.y,self.w+self.margin+2,self.h+1,self.ccolor)
         row = 0
         for i in self.data:
             if row > self.h - 1:
                 wsadd(self.win, self.pos.y + 1 + row, self.pos.x + 1 + self.margin, self.spacer(self.w+self.margin),self.ccolor)
                 continue
             if row == self.selected:
-                self.ccolor = curses.color_pair(6)
+                self.ccolor = curses.color_pair(CC6)
             wsadd(self.win, self.pos.y + 1 + row, self.pos.x + 1 + self.margin, self.data[row],self.ccolor)
-            self.ccolor = curses.color_pair(0)
+            self.ccolor = curses.color_pair(CC0)
             row += 1
         if self.is_focus() == True:
             self.drawcursor()
@@ -492,14 +533,34 @@ class WidgetClock(Widget):
         p2 = WPos(pos.x+4,pos.y+1)
         self.hour = WidgetRoller(win,name+'h',h24,p1,WMode.Default,int(time.split(":")[0]),int(time.split(":")[0]))
         self.minute = WidgetRoller(win,name+'m',m60,p2,WMode.Default,int(time.split(":")[1]),int(time.split(":")[1]))
+        self.ccolor = curses.color_pair(CC0)
         self.draw()
+        self.hour.set_onunfocus(self.draw)
+        self.minute.set_onunfocus(self.draw)
+        self.set_onunfocus(self.draw)
+        self.hour.set_onfocus(self.draw)
+        self.minute.set_onfocus(self.draw)
+        self.set_onfocus(self.draw)
+
+    def focus(self):
+        super().focus()
+
+    def unfocus(self):
+        super().unfocus()
+
+    def is_focus(self):
+        return self.focused or self.hour.is_focus() or self.minute.is_focus()
 
     def draw(self):
-        global scr
         super().draw()
-        wrect(self.win, self.pos.x,self.pos.y,6,2)
+        if self.is_focus():
+            self.ccolor = curses.color_pair(CC4)
+        else:
+            self.ccolor = curses.color_pair(CC0)
+
+        wrect(self.win, self.pos.x,self.pos.y,6,2,self.ccolor)
         self.hour.draw()
-        wsadd(self.win, self.pos.y+1,self.pos.x+3,":")
+        wsadd(self.win, self.pos.y+1,self.pos.x+3,":",self.ccolor)
         self.minute.draw()
 
     def set(self,time):
@@ -581,6 +642,8 @@ class SuWidget():
         else:
             self._focus = k[0]
         if self._wlist[self._focus].attributes&WMode.NoFocus:
+            self._wlist[self._focus].focus()
+            self._wlist[self._focus].draw()
             self.next()
         self._wlist[self._focus].focus()
         self._wlist[self._focus].draw()
@@ -593,6 +656,8 @@ class SuWidget():
         else:
             self._focus = k[k.index(self._focus)-1]
         if self._wlist[self._focus].attributes & WMode.NoFocus:
+            self._wlist[self._focus].focus()
+            self._wlist[self._focus].draw()
             self.prev()
         self._wlist[self._focus].focus()
         self._wlist[self._focus].draw()
@@ -648,9 +713,9 @@ class SuWidget():
         self.scr.touchwin()
     def cleardraw(self,x,y,w,h):
         for ay in range(h):
-            sadd(y + ay, x, self.spacer(w),1)
-    def frame(self):
-        wrect(self.scr,0,0,self.w-2,self.h-2)
+            sadd(y + ay, x, self.spacer(w))
+    def frame(self,cc=0):
+        wrect(self.scr,0,0,self.w-2,self.h-2,cc)
 
     def input(self,x,y,w,h,frame=False):
         f = 0
