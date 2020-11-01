@@ -683,6 +683,19 @@ while key != ord('q'):
     if key == ord('e'):
         if suwa is None:
             suwer_onoff()
+    if key == ord('i'):
+        try:
+            file = open(r'./rules.yaml', 'r')
+            if file:
+                ir = yaml.load(file, Loader=yaml.FullLoader)
+                con.importrules(ir, map)
+        except:
+            None
+    if key == ord('x'):
+        xr = exportrules()
+        with open(r'./rules.yaml', 'w') as file:
+            config = yaml.dump(xr, file)
+
 save()
 suw.quit()
 lasttimer.cancel()
