@@ -158,8 +158,6 @@ def curinit():
     scr.refresh()
     curses.start_color()
     curses.use_default_colors()
-    #curses.init_color(7,1,1,1)
-    #curses.init_color(9,255,255,0)
     curses.savetty()
     curses.cbreak()
     curses.noecho()
@@ -620,7 +618,7 @@ class SuWidget():
 
     def new_win(self,x,y,w,h):
         nw = curses.newwin(h,w,y,x)
-        nw.bkgd(' ', curses.color_pair(3))
+        nw.bkgd(' ', curses.color_pair(CC[0]))
         return nw
 
     #def add_widgetwin(self,name,pos,w,h):

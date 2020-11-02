@@ -21,11 +21,12 @@ if len(sys.argv) > 1:
             a_noinit = True
         elif '-C' in a:
             a_ccinit = a[2:]
+            if not a_ccinit in ['default','blue','red','c64','pip3boy']:
+                a_ccinit = 'default'
 
 from base import *
 import Adafruit_PCA9685
 from pwm import PWM,PWMMode,PWM9685
-
 import time
 from datetime import datetime
 import locale
@@ -368,7 +369,7 @@ if 'rules' in config:
     con.importrules(config['rules'],map)
 
 def update_datetime():
-    pos_datetime.draw("{0:}".format(datetime.now().strftime('%Y-%m-%d  –  %H:%M:%S')),curses.color_pair(CC[0]))
+        pos_datetime.draw("{0:}".format(datetime.now().strftime('%Y-%m-%d  –  %H:%M:%S')),curses.color_pair(CC[0]))
 
 suw.focus("PWM0")
 # counter for update -> apply rules/read sensors every n-th update
