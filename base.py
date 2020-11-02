@@ -257,7 +257,7 @@ class Control():
                         target.down()
                     elif c == 'RAMP':
                         if float(target.get_selected_value()) == 100:
-                            target.set_selected(0)
+                            target.set(0)
                         else:
                             target.up()
                     elif c == 'ZIGZAG':

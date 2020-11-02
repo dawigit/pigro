@@ -10,6 +10,7 @@ import sys
 a_rere = False
 a_nomoon = False
 a_noinit = False
+a_ccinit = 'default'
 if len(sys.argv) > 1:
     for a in sys.argv:
         if a == '-rere':
@@ -18,12 +19,14 @@ if len(sys.argv) > 1:
             a_nomoon = True
         elif a == '-noinit':
             a_noinit = True
+        elif '-C' in a:
+            a_ccinit = a[2:]
 
 from base import *
 import Adafruit_PCA9685
 from pwm import PWM,PWMMode,PWM9685
 
-import time               # Import time library
+import time
 from datetime import datetime
 import locale
 import os
@@ -31,7 +34,6 @@ import yaml
 import threading
 from threading import Timer
 from sensors import sen,W1,Sensor
-#from sensors import W1
 
 rpwm = PWM9685(a_noinit)
 
@@ -44,8 +46,6 @@ slsw = []
 slo = []
 slt = []
 
-CC0 = 3
-
 if len(sen.sensors) == 0:
     NOAUTO = True
 
@@ -57,7 +57,7 @@ if not a_nomoon:
         return "{0:}".format(get_moon())
     def getphase():
         return "{0:3.2f}%".format(get_phase())
-    city = "Rosenheim, Germany"
+    city = "Munich"
     set_location(city)
 
 from widget import *
@@ -150,13 +150,11 @@ lastmaintenance = [None]*16
 pg = WPos(79,40)
 pos_pigro = WPos(6,2)
 pos_status = WPos(2,2)
-pos_datetime = WPos(40,2)
-pos_moon = WPos(66,2)
+pos_datetime = WPos(53,1)
+pos_moon = WPos(64,3)
 pos_sens = WPos(44,8)
 pos_maintenance = WPos(20,2)
 pos_clock = WPos(13,11)
-
-
 
 def wpwm_change(index,value,selected):
     global maintenance,maintenance_pwm
@@ -240,6 +238,7 @@ def set_pwmreversed(index,value,selected=None):
 
 
 suw = SuWidget()
+suw.select_colortheme(a_ccinit)
 suwa = None
 quit_suwa = False
 suwer = None
@@ -369,7 +368,7 @@ if 'rules' in config:
     con.importrules(config['rules'],map)
 
 def update_datetime():
-    pos_datetime.draw("{0:}".format(datetime.now().strftime('%Y-%m-%d  –  %H:%M:%S')),3)
+    pos_datetime.draw("{0:}".format(datetime.now().strftime('%Y-%m-%d  –  %H:%M:%S')),curses.color_pair(CC[0]))
 
 suw.focus("PWM0")
 # counter for update -> apply rules/read sensors every n-th update
@@ -502,7 +501,7 @@ def selectrule(index,value,selected):
         quit_suwa = True
         return
     elif value == 'INPUT':
-        value = suwa.input(5+len(seditrule)+3,21,9,1,True)
+        value = suwa.input(5+len(seditrule)+3,17,9,1,True)
         if len(value):
             if '.' in value:
                 con.add_object(value)
@@ -616,7 +615,7 @@ def suwa_onoff():
     if quit_suwa is True:
         rulename = None
     if suwa is None:
-        suwa = SuWidget(1,20,77,20)
+        suwa = SuWidget(1,17,77,20)
         suwa.frame()
         if rulename is not None:
             addrule(suwa,rulename)

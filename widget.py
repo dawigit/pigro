@@ -10,15 +10,20 @@ S_CLOCK = "⏰"
 #scr = None
 scr = curses.initscr()
 
-CC0 = 0
-CC1 = 1
-CC2 = 2
-CC3 = 3
-CC4 = 4
-CC5 = 5
-CC6 = 6
-CC7 = 7
-CC8 = 8
+CCdefault = [0,1,2,3,4,5,6,7]
+CCpip3boy = [3,1,2,7,7,7,3,7]
+CCred = [8,1,2,9,10,9,10,7]
+CCblue = [11,1,2,3,11,11,12,7]
+CCc64 = [5,1,2,3,4,5,6,7]
+CThemes = {
+    'default': CCdefault,
+    'pip3boy': CCpip3boy,
+    'red': CCred,
+    'blue': CCblue,
+    'c64': CCc64,
+}
+
+CC = CCdefault
 
 class WMode(Flag):
     Default = auto()
@@ -58,7 +63,9 @@ class WPos():
     def nextposy(self):
         self.lasty = self.y
         self.y += self.nexty
-    def draw(self,value,c=0):
+    def draw(self,value,c=None):
+        if c is None:
+            c = CC[0]
         if self.win is not None:
             self.win.addstr(self.y,self.x,value,c)
         else:
@@ -103,6 +110,7 @@ class WLabel():
             labelpos = WPos(0,0)
         self.labelpos = labelpos
         self.wvalue = wvalue
+        self.ccolor = curses.color_pair(CC[0])
     def update(self):
         if self.wvalue is not None:
             self.wvalue.call_getvalue()
@@ -112,6 +120,9 @@ class WLabel():
         self.update()
         return self.value
 
+    def set_color(self,color):
+        self.ccolor = curses.color_pair(color)
+
 class WSymbol():
     def __init__(self,wsmap,labelpos):
         if wsmap is None:
@@ -120,6 +131,7 @@ class WSymbol():
         self.mapvalue = 'default'
         self.labelpos = labelpos
         self.wsmap = wsmap
+        self.ccolor = ccp(0)
 
     def change(self,name):
         self.value = self.wsmap[name]
@@ -139,13 +151,15 @@ class WSymbol():
     def getmapvalue(self):
         return self.mapvalue
 
-def init():
+def curinit():
     y, x = scr.getmaxyx()
     scr.clear()
     curses.resizeterm(y, x)
     scr.refresh()
     curses.start_color()
     curses.use_default_colors()
+    #curses.init_color(7,1,1,1)
+    #curses.init_color(9,255,255,0)
     curses.savetty()
     curses.cbreak()
     curses.noecho()
@@ -156,15 +170,26 @@ def init():
     curses.init_pair(4, curses.COLOR_YELLOW, curses.COLOR_BLACK)
     curses.init_pair(5, curses.COLOR_CYAN, curses.COLOR_BLUE)
     curses.init_pair(6, curses.COLOR_YELLOW, curses.COLOR_BLUE)
+    curses.init_pair(7, curses.COLOR_BLACK, curses.COLOR_GREEN)
+    curses.init_pair(8, curses.COLOR_RED, curses.COLOR_BLACK)
+    curses.init_pair(9, curses.COLOR_BLACK, curses.COLOR_RED)
+    curses.init_pair(10, curses.COLOR_YELLOW, curses.COLOR_BLACK)
+    curses.init_pair(11, curses.COLOR_WHITE, curses.COLOR_BLUE)
+    curses.init_pair(12, curses.COLOR_BLUE, curses.COLOR_CYAN)
     scr.keypad(1)
-    ccolor = curses.color_pair(CC0)
+    curses.pair_content
+    scr.bkgd(' ', curses.color_pair(6))
+    ccolor = curses.color_pair(CC[0])
     return scr
+
+def ccp(i):
+    return curses.color_pair(i)
 
 def rect(x,y,w,h):
     global scr
     rectangle(scr,y,x,y+h,x+w)
 
-def wrect(win,x,y,w,h,c=0):
+def wrect(win,x,y,w,h,c):
     #rectangle(win,y,x,y+h,x+w)
     xrect(win,y,x,y+h,x+w,c)
 
@@ -235,7 +260,7 @@ class Widget(BaseWidget):
         elif type(labels) is list:
             self.labels = labels
         self.locked = False
-        self.ccolor = 0
+        self.ccolor = curses.color_pair(CC[0])
         self.onfocus = None
 
     def focus(self):
@@ -286,11 +311,13 @@ class Widget(BaseWidget):
         self.draw_labels()
 
     def draw_labels(self):
+        first = True
         for l in self.labels:
             if type(l) is WLabel:
                 if l.wvalue is not None:
                     l.update()
-            wsadd(self.win,self.pos.y+l.labelpos.y, self.pos.x+l.labelpos.x, l.value, 2)
+            wsadd(self.win,self.pos.y+l.labelpos.y, self.pos.x+l.labelpos.x, l.value, ccp(0) if isinstance(l.value, WSymbol) else l.ccolor)
+            first = False
     def onkeyboard(self,key):
         None
     def getconfig(self):
@@ -310,11 +337,9 @@ class WidgetRoller(Widget):
         self.w = w
         self.h = h
         self.data = data
-        if type(selected) is str:
-            selected = str(selected)
-        self.selected = selected
-        self.cursorposition = cursorposition
-        self.ccolor = curses.color_pair(CC0)
+        self.selected = int(selected)
+        self.cursorposition = int(cursorposition)
+        self.ccolor = curses.color_pair(CC[0])
 
     def focus(self):
         super().focus()
@@ -331,11 +356,11 @@ class WidgetRoller(Widget):
         cc = None
         cs = None
         if self.is_focus():
-            cc = curses.color_pair(CC4)
-            cs = curses.color_pair(CC6)
+            cc = curses.color_pair(CC[4])
+            cs = curses.color_pair(CC[6])
         else:
-            cc = curses.color_pair(CC0)
-            cs = curses.color_pair(CC5)
+            cc = curses.color_pair(CC[0])
+            cs = curses.color_pair(CC[5])
         self.ccolor = cc
         plusone = 1
         if WMode.Frame in WMode(self.attributes):
@@ -354,8 +379,7 @@ class WidgetRoller(Widget):
             self.onchange(self.arg,self.data[self.selected],self.selected)
 
     def movecursor(self,direction):
-        if type(direction) is str:
-            direction = int(direction)
+        direction = int(direction)
         if WMode.NoCircle in WMode(self.attributes):
             if self.cursorposition+direction < 0 or self.cursorposition+direction > len(self.data)-1:
                 return
@@ -378,8 +402,8 @@ class WidgetRoller(Widget):
 
     def set(self,index):
             if self.locked is False:
-                self.cursorposition = index
-                self.movecursor(0)
+                self.cursorposition = int(index)
+                self.select()
 
     def onkeyboard(self,key):
         if key == ord('d'):
@@ -394,9 +418,6 @@ class WidgetRoller(Widget):
 
     def get_selected(self):
         return self.selected
-
-    def set_selected(self,selected):
-        self.selected = selected
 
     def get_selected_value(self):
         return self.data[self.selected]
@@ -422,10 +443,10 @@ class WidgetSelect(Widget):
         self.w = w
         self.h = h
         self.data = data
-        self.selected = selected
+        self.selected = int(selected)
         self.cursorposition = int(cursorposition)
         self.margin = margin
-        self.ccolor = curses.color_pair(CC0)
+        self.ccolor = curses.color_pair(CC[0])
 
         self.draw()
 
@@ -450,9 +471,9 @@ class WidgetSelect(Widget):
                 wsadd(self.win, self.pos.y + 1 + row, self.pos.x + 1 + self.margin, self.spacer(self.w+self.margin),self.ccolor)
                 continue
             if row == self.selected:
-                self.ccolor = curses.color_pair(CC6)
+                self.ccolor = curses.color_pair(CC[6])
             wsadd(self.win, self.pos.y + 1 + row, self.pos.x + 1 + self.margin, self.data[row],self.ccolor)
-            self.ccolor = curses.color_pair(CC0)
+            self.ccolor = curses.color_pair(CC[0])
             row += 1
         if self.is_focus() == True:
             self.drawcursor()
@@ -463,6 +484,7 @@ class WidgetSelect(Widget):
 
     def movecursor(self,direction):
         global scr
+        direction = int(direction)
         wsadd(self.win, self.pos.y + 1 + self.cursorposition, self.pos.x + 1, self.spacer(self.margin),self.ccolor)
         if direction == 1 and self.cursorposition+1 < len(self.data):
             self.cursorposition += 1
@@ -493,8 +515,9 @@ class WidgetSelect(Widget):
 
     def set(self,index):
             if self.locked is False:
-                self.cursorposition = index
-                self.movecursor(0)
+                self.cursorposition = int(index)
+                self.select()
+                #self.movecursor(0)
 
 
     def onkeyboard(self,key):
@@ -519,6 +542,8 @@ class WidgetSelect(Widget):
 
     def get_selected(self):
         return self.selected
+    def set_selected(self,selected):
+        self.selected = int(selected)
 
     def get_selected_value(self):
         return self.data[self.selected]
@@ -533,7 +558,7 @@ class WidgetClock(Widget):
         p2 = WPos(pos.x+4,pos.y+1)
         self.hour = WidgetRoller(win,name+'h',h24,p1,WMode.Default,int(time.split(":")[0]),int(time.split(":")[0]))
         self.minute = WidgetRoller(win,name+'m',m60,p2,WMode.Default,int(time.split(":")[1]),int(time.split(":")[1]))
-        self.ccolor = curses.color_pair(CC0)
+        self.ccolor = curses.color_pair(CC[0])
         self.draw()
         self.hour.set_onunfocus(self.draw)
         self.minute.set_onunfocus(self.draw)
@@ -554,19 +579,19 @@ class WidgetClock(Widget):
     def draw(self):
         super().draw()
         if self.is_focus():
-            self.ccolor = curses.color_pair(CC4)
+            self.ccolor = curses.color_pair(CC[4])
         else:
-            self.ccolor = curses.color_pair(CC0)
+            self.ccolor = curses.color_pair(CC[0])
 
         wrect(self.win, self.pos.x,self.pos.y,6,2,self.ccolor)
         self.hour.draw()
         wsadd(self.win, self.pos.y+1,self.pos.x+3,":",self.ccolor)
         self.minute.draw()
 
-    def set(self,time):
-        self.hour.select(int(time.split(":")[0]))
-        self.minute.select(int(time.split(":")[1]))
-    def get(self):
+    def set_time(self,time):
+        self.hour.set(int(time.split(":")[0]))
+        self.minute.set(int(time.split(":")[1]))
+    def get_timestr(self):
         return self.hour.get_selected_value()+":"+self.minute.get_selected_value()
     def getconfig(self):
         return [self.hour.get_selected(),self.minute.get_selected()]
@@ -577,9 +602,9 @@ class SuWidget():
         if x is not None:
             self.scr = self.new_win(x,y,w,h)
         else:
-            self.scr = init()
+            self.scr = curinit()
+            self.scr.bkgd(' ', ccp(CC[0]))
 
-        self.rect = rect
         self.wrect = wrect
         self.w = w
         self.h = h
@@ -594,7 +619,9 @@ class SuWidget():
         self._wlist[name].set_onchange(onchange,arg)
 
     def new_win(self,x,y,w,h):
-        return curses.newwin(h,w,y,x)
+        nw = curses.newwin(h,w,y,x)
+        nw.bkgd(' ', curses.color_pair(3))
+        return nw
 
     #def add_widgetwin(self,name,pos,w,h):
     #    self._wlist[name] = WidgetWin(name,pos,w,h)
@@ -632,7 +659,7 @@ class SuWidget():
     #    return self._wlist[name]
 
     def get_clock_time(self,name):
-        return self._wlist[name].get()
+        return self._wlist[name].get_timestr()
 
     def next(self):
         self._wlist[self._focus].unfocus()
@@ -714,8 +741,8 @@ class SuWidget():
     def cleardraw(self,x,y,w,h):
         for ay in range(h):
             sadd(y + ay, x, self.spacer(w))
-    def frame(self,cc=0):
-        wrect(self.scr,0,0,self.w-2,self.h-2,cc)
+    def frame(self):
+        wrect(self.scr,0,0,self.w-2,self.h-2,ccp(CC[0]))
 
     def input(self,x,y,w,h,frame=False):
         f = 0
@@ -724,7 +751,7 @@ class SuWidget():
         pi = WPos(x,y)
         win = curses.newwin(h, w, pi.y, pi.x)
         if frame is True:
-            rect(pi.x-1,pi.y-1,w+1,h+1)
+            wrect(scr,pi.x-1,pi.y-1,w+1,h+1,ccp(CC[0]))
         scr.refresh()
         curses.curs_set(1)
         box = Textbox(win)
@@ -736,3 +763,14 @@ class SuWidget():
         del(win)
         self.refresh()
         return value
+
+    def rect(self,x,y,w,h):
+        wrect(self.scr,x,y,w-2,h-2,ccp(CC[0]))
+
+    def select_colortheme(self,name):
+        global CC
+        if name in list(CThemes.keys()):
+            CC = CThemes[name]
+        else:
+            CC = CThemes['default']
+        self.scr.bkgd(' ', ccp(CC[0]))
