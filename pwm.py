@@ -31,7 +31,7 @@ class PWM():
             value = 0
         if self.mode & PWMMode.reranged:
             value += self.rerange[0]
-            value = (value * self.rerange[1])/100
+            value = (value * (self.rerange[1]-self.rerange[0]))/100
 
         if self.mode & PWMMode.reversed:
             value = 100 - value

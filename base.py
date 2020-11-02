@@ -146,6 +146,7 @@ class Rule():
     def __init__(self,value,index=None):
         self.value = value
         self.index = index
+        self.mode = None
     def __getitem__(self,index):
         return self.value[index]
     def __repr__(self):
@@ -216,7 +217,7 @@ class Control():
                 s+=str(o.value[o.index])
             else:
                 if hasattr(o.value,'get_selected_value'):
-                    s+=str(o.value.get_selected_value())
+                    s+=str(float(str(o.value.get_selected_value())))
                 else:
                     st = str(o.value)
                     if st in ['and','or']:
@@ -254,6 +255,20 @@ class Control():
                         target.up()
                     elif c == 'DOWN':
                         target.down()
+                    elif c == 'RAMP':
+                        if float(target.get_selected_value()) == 100:
+                            target.set_selected(0)
+                        else:
+                            target.up()
+                    elif c == 'ZIGZAG':
+                        if c.mode is None or c.mode == 0:
+                            if float(target.get_selected_value()) == 100:
+                                c.mode = 1
+                            target.up()
+                        elif c.mode == 1:
+                            if float(target.get_selected_value()) == 0:
+                                c.mode = 0
+                            target.down()
                     else:
                         cd = float(c.value)
                         cd = int(float(cd))

@@ -42,6 +42,7 @@ rulename = None
 seditrule = None
 slsw = []
 slo = []
+slt = []
 
 CC0 = 3
 
@@ -66,6 +67,7 @@ time.tzset()
 dto=datetime.now()
 
 K_UPDATE_COUNTER = 5 # sensors are read every 5th update
+K_UPDATE_RCOUNTER = 5 # rules are applied every 5th update
 K_AUTO_TEMP = 31
 K_MAINTENANCE_LIGHT = 20    #pwm value for maintenance mode
 
@@ -313,7 +315,7 @@ for j in range(ROW2):
     p.nextpos()
 
 if a_rere:
-    rpwm.add(0,10,PWMMode.RERE,0,80)
+    rpwm.add(0,10,PWMMode.RERE,10,80)
 else:
     rpwm.add(0,10,PWMMode.default,0,100)
 rpwm.add(1,0,PWMMode.default,0,100)
@@ -370,11 +372,12 @@ def update_datetime():
     pos_datetime.draw("{0:}".format(datetime.now().strftime('%Y-%m-%d  –  %H:%M:%S')),3)
 
 suw.focus("PWM0")
-
+# counter for update -> apply rules/read sensors every n-th update
 counter = 0
+rcounter = 0
 
 def update():
-    global counter
+    global counter,rcounter
     pos_status.draw(S_UPDATE)
     update_datetime()
     scr.refresh()
@@ -383,11 +386,15 @@ def update():
     counter += 1
     if counter == K_UPDATE_COUNTER:
         get_dht('r')
+        get_hih('r')    #read new values from sensors
+        get_w1('r')
         counter = 0
-    get_hih('r')    #read new values from sensors
-    get_w1('r')
-    for k in list(con.rules.keys()):
-        con.rid(k)
+
+    rcounter += 1
+    if rcounter == K_UPDATE_RCOUNTER:
+        for k in list(con.rules.keys()):
+            con.rid(k)
+        rcounter = 0
     suw.update_all()
     pos_status.draw(S_OK)
     scr.refresh()
@@ -446,7 +453,7 @@ def strrule(k):
     return dd
 
 def addrule(suwa,edit=None):
-    global numrules,rulemode,seditrule,slsw,slo,rulename
+    global numrules,rulemode,seditrule,slsw,slo,slt,rulename
     if edit is not None:
         rulename = edit
         seditrule = strrule(edit)
@@ -464,7 +471,7 @@ def addrule(suwa,edit=None):
     sle = ['EXIT','INPUT',S_CLOCK,'->','DEL','ENTER']
     sls = list(sen.sensors.keys())
     slsw = list()
-    slt = ['UP','DOWN']
+    slt = ['UP','DOWN','RAMP','ZIGZAG']
     for i in range(len(sls)):
         if sen.sensors[sls[i]].valueisdict:
             vkeys = list(sen.sensors[sls[i]].value.keys())
@@ -490,7 +497,7 @@ def addrule(suwa,edit=None):
     suwa.refresh()
 
 def selectrule(index,value,selected):
-    global rulemode,numrules,seditrule,quit_suwa,slsw,slo,rulename
+    global rulemode,numrules,seditrule,quit_suwa,slsw,slo,slt,rulename
     if value == 'EXIT':
         quit_suwa = True
         return
@@ -534,12 +541,9 @@ def selectrule(index,value,selected):
     elif value in ['->']:
         con.add_object(value)
     elif value in list(slo):
-        if value in ['and','or']:
-            con.add_object(' '+str(value)+' ')
-        else:
-            con.add_object(value)
-    elif value in ['UP','DOWN']:
         con.add_object(value)
+    elif value in slt:
+        con.add_object(str(value))
     elif 'PWM' in value:
         con.add_object(suw.W(value))
     if value is not None:
@@ -679,6 +683,7 @@ while key != ord('q'):
             update()
     if key == ord('a'):
         rulename = None
+        seditrule = None
         if suwer is None:
             suwa_onoff()
     if key == ord('e'):
