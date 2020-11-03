@@ -170,8 +170,14 @@ class Control():
         self.edittrule = None
         self.editname = None
         self.editbackup = None
-    def add_object(self,o,i=None):
-        self.editrule.append(Rule(o,i))
+
+    def add_object(self,ri,o,i=None):
+        lse = len(self.editrule)
+        if ri >= lse or lse == 0:
+            self.editrule.append(Rule(o,i))
+        else:
+            self.editrule[ri] = Rule(o,i)
+
     def del_last(self):
         if len(self.editrule):
             del self.editrule[-1]
@@ -193,14 +199,16 @@ class Control():
             self.editname = 'RULE'+str(i)
             self.editrule = []
             rs = rule.split(' ')
+            rc = 0
             for r in rs:
                 if r in list(map.keys()):
                     if '@' in r:
-                        self.add_object(map[r],r.split('@')[1])
+                        self.add_object(rc, map[r],r.split('@')[1])
                     else:
-                        self.add_object(map[r])
+                        self.add_object(rc, map[r])
                 else:
-                    self.add_object(r)
+                    self.add_object(rc, r)
+                rc+=1
             self.add_rule()
             i+=1
 

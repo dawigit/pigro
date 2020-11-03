@@ -43,6 +43,7 @@ numrules = 0
 rulemode = False
 rulename = None
 seditrule = None
+seditpos = 0
 slsw = []
 slo = []
 slt = []
@@ -436,7 +437,7 @@ def save():
 
 def strrule(k):
     dd = ''
-    for r in con.rules[k]:
+    for r in k:
         if len(dd):
             dd+=' '
         if isinstance(r.value,Widget):
@@ -453,10 +454,13 @@ def strrule(k):
     return dd
 
 def addrule(suwa,edit=None):
-    global numrules,rulemode,seditrule,slsw,slo,slt,rulename
+    global numrules,rulemode,seditrule,seditpos,slsw,slo,slt,rulename
     if edit is not None:
         rulename = edit
-        seditrule = strrule(edit)
+        seditrule = strrule(con.rules[edit])
+        if seditpos is None:
+            seditpos = seditrule.count(' ')
+
         con.edit_rule(rulename)
     else:
         seditrule = ''
@@ -491,13 +495,30 @@ def addrule(suwa,edit=None):
         p.nextpos()
     suwa.focus(rulename+'_'+str(0))
     suwa.touchwin()
-    if seditrule != '':
-        wsadd(suwa.scr,1,3,suwa.spacer(72))
-        wsadd(suwa.scr,1,3,seditrule)
+    drawrule(seditpos,seditrule)
+
+
+def drawrule(seditpos,seditrule):
+    wsadd(suwa.scr,1,3,suwa.spacer(70))
+    if seditpos is not None:
+        srs = seditrule.split(' ')
+        s = ''
+        sp = 0
+        for i in range(len(srs)):
+            v = srs[i]
+            v+= ' '
+            if i == seditpos:
+                wsadd(suwa.scr,1,3+sp,srs[i]+' ',curses.A_BLINK | curses.A_BOLD)
+            else:
+                wsadd(suwa.scr,1,3+sp,srs[i]+' ')
+            sp+=len(srs[i])+1
+        if seditpos > seditrule.count(' ') or seditrule.count(' ') == 0:
+            wsadd(suwa.scr,1,3+sp,' ',ccp(CC[5]))
     suwa.refresh()
 
+
 def selectrule(index,value,selected):
-    global rulemode,numrules,seditrule,quit_suwa,slsw,slo,slt,rulename
+    global rulemode,numrules,seditrule,seditpos,quit_suwa,slsw,slo,slt,rulename
     if value == 'EXIT':
         quit_suwa = True
         return
@@ -505,9 +526,9 @@ def selectrule(index,value,selected):
         value = suwa.input(5+len(seditrule)+3,17,9,1,True)
         if len(value):
             if '.' in value:
-                con.add_object(value)
+                con.add_object(seditpos, value)
             if value.isdigit():
-                con.add_object(value)
+                con.add_object(seditpos, value)
         scr.refresh()
     elif value == S_CLOCK:
         tr = suwa.input(5,21,16,1,True)
@@ -516,7 +537,7 @@ def selectrule(index,value,selected):
         else:
             value = None
         if value is not None:
-            con.add_object(str(value))
+            con.add_object(seditpos, str(value))
         scr.refresh()
     elif value == 'DEL':
         if len(seditrule):
@@ -535,22 +556,22 @@ def selectrule(index,value,selected):
     elif value in list(slsw):
         if '@' in value:
             vs = value.split('@')
-            con.add_object(sen.sensors[vs[0]],vs[1])
+            con.add_object(seditpos, sen.sensors[vs[0]],vs[1])
         else:
-            con.add_object(sen.sensors[value])
+            con.add_object(seditpos, sen.sensors[value])
     elif value in ['->']:
-        con.add_object(value)
+        con.add_object(seditpos, value)
     elif value in list(slo):
-        con.add_object(value)
+        con.add_object(seditpos, value)
     elif value in slt:
-        con.add_object(str(value))
+        con.add_object(seditpos, str(value))
     elif 'PWM' in value:
-        con.add_object(suw.W(value))
+        con.add_object(seditpos, suw.W(value))
     if value is not None:
-        seditrule += ' '+value
-    wsadd(suwa.scr,1,3,suwa.spacer(70))
-    wsadd(suwa.scr,1,3,seditrule)
-    suwa.refresh()
+        seditrule = strrule(con.editrule)
+        seditpos += 1
+    drawrule(seditpos,seditrule)
+
 
 def addrule_exit():
     rulemode = False
@@ -567,12 +588,13 @@ def redraw():
     update()
 
 def edit_rule(arg,value,selected):
-    global quit_suwer,seditrule,rulename
+    global quit_suwer,seditrule,seditpos,rulename
     #quit_suwer = True
     if selected == 0:
         suwer_onoff()
         return
     seditrule = value
+    seditpos = seditrule.count(' ')
     rulename = list(con.rules.keys())[selected-1]
     suwer_onoff()
     suwa_onoff()
@@ -581,7 +603,7 @@ def edit_rules(suwer):
     lp = WPos(1,1)
     d = ['QUIT']
     for k in list(con.rules.keys()):
-        d.append(strrule(k))
+        d.append(strrule(con.rules[k]))
     suwer.add_widgetselect('SUWER',d,lp,WMode.Frame)
     suwer.set_onchange('SUWER',edit_rule)
     suwer.focus('SUWER')
@@ -684,8 +706,23 @@ while key != ord('q'):
     if key == ord('a'):
         rulename = None
         seditrule = None
+        seditpos = 0
         if suwer is None:
             suwa_onoff()
+    if key == ord('>'):
+        if seditrule is not None:
+            if seditpos > seditrule.count(' ')+1:
+                seditpos = seditrule.count(' ')
+            if seditpos < seditrule.count(' ')+1:
+                seditpos+=1
+            drawrule(seditpos,seditrule)
+    if key == ord('<'):
+        if seditrule is not None:
+            if seditpos > seditrule.count(' ')+1:
+                seditpos = seditrule.count(' ')
+            elif seditpos > 0:
+                seditpos-=1
+            drawrule(seditpos,seditrule)
     if key == ord('e'):
         if suwa is None:
             suwer_onoff()
