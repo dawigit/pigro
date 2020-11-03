@@ -508,12 +508,12 @@ def drawrule(seditpos,seditrule):
             v = srs[i]
             v+= ' '
             if i == seditpos:
-                wsadd(suwa.scr,1,3+sp,srs[i]+' ',curses.A_BLINK | curses.A_BOLD)
+                wsadd(suwa.scr,1,3+sp,v,curses.A_BLINK | curses.A_BOLD | curses.A_REVERSE)
             else:
-                wsadd(suwa.scr,1,3+sp,srs[i]+' ')
+                wsadd(suwa.scr,1,3+sp,v)
             sp+=len(srs[i])+1
         if seditpos > seditrule.count(' ') or seditrule.count(' ') == 0:
-            wsadd(suwa.scr,1,3+sp,' ',ccp(CC[5]))
+            wsadd(suwa.scr,1,3+sp,'◀',curses.A_BLINK)
     suwa.refresh()
 
 
@@ -523,7 +523,7 @@ def selectrule(index,value,selected):
         quit_suwa = True
         return
     elif value == 'INPUT':
-        value = suwa.input(5+len(seditrule)+3,17,9,1,True)
+        value = suwa.input(5+len(seditrule)+3,18,9,1,True)
         if len(value):
             if '.' in value:
                 con.add_object(seditpos, value)
@@ -531,7 +531,7 @@ def selectrule(index,value,selected):
                 con.add_object(seditpos, value)
         scr.refresh()
     elif value == S_CLOCK:
-        tr = suwa.input(5,21,16,1,True)
+        tr = suwa.input(5+len(seditrule)+3,18,16,1,True)
         if '-' in tr:
             value = S_CLOCK+tr
         else:
