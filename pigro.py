@@ -2,6 +2,7 @@
 #!/usr/bin/env python3
 
 #NOMOON = True
+DRAWEDITCURSOR = True
 NOAUTO = False
 ROW1 = 4
 ROW2 = 1
@@ -506,10 +507,14 @@ def drawrule(seditpos,seditrule):
         sp = 0
         for i in range(len(srs)):
             v = srs[i]
-            v+= ' '
             if i == seditpos:
+                if DRAWEDITCURSOR is True:
+                    v+='◀'
+                else:
+                    v+=' '
                 wsadd(suwa.scr,1,3+sp,v,curses.A_BLINK | curses.A_BOLD | curses.A_REVERSE)
             else:
+                v+= ' '
                 wsadd(suwa.scr,1,3+sp,v)
             sp+=len(srs[i])+1
         if seditpos > seditrule.count(' ') or seditrule.count(' ') == 0:
