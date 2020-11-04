@@ -12,6 +12,7 @@ a_rere = False
 a_nomoon = False
 a_noinit = False
 a_ccinit = 'default'
+a_newconf = False
 if len(sys.argv) > 1:
     for a in sys.argv:
         if a == '-rere':
@@ -24,6 +25,18 @@ if len(sys.argv) > 1:
             a_ccinit = a[2:]
             if not a_ccinit in ['default','blue','red','c64','pip3boy']:
                 a_ccinit = 'default'
+        elif '-P' in a:
+            setrow2 = a[2:]
+            if setrow2.isdigit():
+                setrow2 = int(setrow2)
+            if setrow2 in range(1,5):
+                ROW2 = setrow2
+        elif a == '-newconf':
+            a_newconf = True
+        else:
+            if a != 'pigro.py':
+                print('unknown option: '+a)
+
 
 from base import *
 import Adafruit_PCA9685
@@ -150,7 +163,7 @@ maintenance_pwm = [20]*16
 lastmaintenance = [None]*16
 
 
-pg = WPos(79,40)
+pg = WPos(79,14*ROW2+3+22)
 pos_pigro = WPos(6,2)
 pos_status = WPos(2,2)
 pos_datetime = WPos(53,1)
@@ -247,6 +260,7 @@ quit_suwa = False
 suwer = None
 quit_suwer = False
 config = {}
+
 try:
     file = open(r'./config.yaml', 'r')
     if file:
@@ -254,7 +268,9 @@ try:
         if a_rere :
             config['PWM0INV'] = 1
 except:
-    # default config
+    a_newconf = True
+
+if a_newconf is True:
     config['pwm'] = rpwm.get_config()
     pwminv = [0,0,0,0]*ROW2  #eg. MeanWell Driver
     if a_rere :
@@ -268,7 +284,7 @@ except:
         config['PWM'+str(i)+'INV'] = pwminv[i]
 
 
-suw.rect(0, 0, 79, 40)
+suw.rect(0, 0, pg.x, pg.y)
 suw.add_widgetlabel("PIGRO", L_PIGRO, pos_pigro)
 p = WPos(6,4)
 #leading symbols for PWMn
@@ -313,7 +329,7 @@ for j in range(ROW2):
                 config['PWM'+str(i+j*ROW1)+'INV'],config['PWM'+str(i+j*ROW1)+'INV'],0,1)
         p.x = p.ix
         p.nextposy()
-    p.setnext(0,3)
+    p.setnext(0,2)
     p.nextpos()
 
 if a_rere:
@@ -432,7 +448,6 @@ def save():
     configsave = suw.get_config()
     configsave['pwm'] = rpwm.get_config()
     configsave['rules'] = exportrules()
-
     with open(r'./config.yaml', 'w') as file:
         config = yaml.dump(configsave, file)
 
@@ -528,15 +543,16 @@ def selectrule(index,value,selected):
         quit_suwa = True
         return
     elif value == 'INPUT':
-        value = suwa.input(5+len(seditrule)+3,18,9,1,True)
+        value = suwa.input(5+len(seditrule)+3,1,9,1,True)
         if len(value):
             if '.' in value:
                 con.add_object(seditpos, value)
             if value.isdigit():
                 con.add_object(seditpos, value)
         scr.refresh()
+        suwa.update_all()
     elif value == S_CLOCK:
-        tr = suwa.input(5+len(seditrule)+3,18,16,1,True)
+        tr = suwa.input(5+len(seditrule)+3,1,16,1,True)
         if '-' in tr:
             value = S_CLOCK+tr
         else:
@@ -544,6 +560,7 @@ def selectrule(index,value,selected):
         if value is not None:
             con.add_object(seditpos, str(value))
         scr.refresh()
+        suwa.update_all()
     elif value == 'DEL':
         if len(seditrule):
             if ' ' in seditrule:
@@ -589,7 +606,7 @@ def addrule_exit():
 
 def redraw():
     scr.clear();
-    suw.rect(0, 0, 79, 40)
+    suw.rect(0, 0, pg.x, pg.y)
     update()
 
 def edit_rule(arg,value,selected):
@@ -643,7 +660,7 @@ def suwa_onoff():
     if quit_suwa is True:
         rulename = None
     if suwa is None:
-        suwa = SuWidget(1,17,77,20)
+        suwa = SuWidget(1,pg.y-23,76,21)
         suwa.frame()
         if rulename is not None:
             addrule(suwa,rulename)
@@ -660,7 +677,7 @@ def suwa_onoff():
 def suwer_onoff():
     global suwer,quit_suwer
     if suwer is None:
-        suwer = SuWidget(1,16,77,20)
+        suwer = SuWidget(1,pg.y-23,76,21)
         suwer.frame()
         edit_rules(suwer)
     else:

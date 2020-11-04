@@ -12,9 +12,9 @@ scr = curses.initscr()
 
 CCdefault = [0,1,2,3,4,5,6,7]
 CCpip3boy = [3,1,2,7,7,7,3,7]
-CCred = [8,1,2,9,10,9,10,7]
+CCred = [8,1,2,10,4,10,13,7]
 CCblue = [11,1,2,3,11,11,12,7]
-CCc64 = [5,1,2,3,4,5,6,7]
+CCc64 = [5,1,2,3,12,5,6,7]
 CThemes = {
     'default': CCdefault,
     'pip3boy': CCpip3boy,
@@ -170,10 +170,11 @@ def curinit():
     curses.init_pair(6, curses.COLOR_YELLOW, curses.COLOR_BLUE)
     curses.init_pair(7, curses.COLOR_BLACK, curses.COLOR_GREEN)
     curses.init_pair(8, curses.COLOR_RED, curses.COLOR_BLACK)
-    curses.init_pair(9, curses.COLOR_BLACK, curses.COLOR_RED)
+    curses.init_pair(9, curses.COLOR_BLACK, curses.COLOR_YELLOW)
     curses.init_pair(10, curses.COLOR_YELLOW, curses.COLOR_BLACK)
     curses.init_pair(11, curses.COLOR_WHITE, curses.COLOR_BLUE)
     curses.init_pair(12, curses.COLOR_BLUE, curses.COLOR_CYAN)
+    curses.init_pair(13, curses.COLOR_WHITE, curses.COLOR_YELLOW)
     scr.keypad(1)
     curses.pair_content
     scr.bkgd(' ', curses.color_pair(6))
@@ -535,7 +536,7 @@ class WidgetSelect(Widget):
         return sp
 
     def cleardraw(self):
-        for y in range(self.h + 1):
+        for y in range(self.h-1):
             wsadd(self.win, self.pos.y + y, self.pos.x, self.spacer(self.w + 1),self.ccolor)
 
     def get_selected(self):
@@ -599,13 +600,18 @@ class SuWidget():
     def __init__(self,x=None,y=None,w=None,h=None):
         if x is not None:
             self.scr = self.new_win(x,y,w,h)
+            self.x = x
+            self.y = y
         else:
             self.scr = curinit()
+            self.x = 0
+            self.y = 0
             self.scr.bkgd(' ', ccp(CC[0]))
 
         self.wrect = wrect
         self.w = w
         self.h = h
+        self.framed = False
 
         self._wlist = OrderedDict()
         self._focus = ""
@@ -713,6 +719,8 @@ class SuWidget():
     def update_all(self):
         for key in self._wlist.keys():
             self._wlist[key].draw()
+        if self.framed is True:
+            self.frame()
 
     def get_config(self):
         conf = {}
@@ -737,19 +745,22 @@ class SuWidget():
     def touchwin(self):
         self.scr.touchwin()
     def cleardraw(self,x,y,w,h):
-        for ay in range(h):
+        for ay in range(h-2):
             sadd(y + ay, x, self.spacer(w))
+    def wcleardraw(self,win,x,y,w,h):
+        for ay in range(h-2):
+            wsadd(win, y + ay, x, self.spacer(w))
     def frame(self):
-        wrect(self.scr,0,0,self.w-2,self.h-2,ccp(CC[0]))
+        wrect(self.scr,0,0,self.w-2,self.h-1,ccp(CC[0]))
+        self.framed = True
 
     def input(self,x,y,w,h,frame=False):
         f = 0
-        if frame is True:
-            f = 1
         pi = WPos(x,y)
-        win = curses.newwin(h, w, pi.y, pi.x)
+        win = curses.newwin(h, w, self.y+pi.y, self.x+pi.x)
         if frame is True:
-            wrect(scr,pi.x-1,pi.y-1,w+1,h+1,ccp(CC[0]))
+            wrect(self.scr,pi.x-1,pi.y-1,w+1,h+1,ccp(CC[0]))
+            self.refresh()
         scr.refresh()
         curses.curs_set(1)
         box = Textbox(win)
@@ -757,9 +768,10 @@ class SuWidget():
         m = box.gather()
         curses.curs_set(0)
         value = m.strip()
-        self.cleardraw(pi.x-1, pi.y-1, w+2, h+2)
-        del(win)
+        del win
+        self.wcleardraw(self.scr,pi.x-1, pi.y-1, w+2, h+4)
         self.refresh()
+        self.update_all()
         return value
 
     def rect(self,x,y,w,h):
