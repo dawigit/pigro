@@ -35,7 +35,7 @@ if len(sys.argv) > 1:
             a_newconf = True
         else:
             if a != 'pigro.py':
-                print('unknown option: '+a)
+                print('unknown argument: '+a)
 
 
 from base import *
@@ -58,6 +58,7 @@ rulemode = False
 rulename = None
 seditrule = None
 seditpos = 0
+rulecursoroffset = 0
 slsw = []
 slo = []
 slt = []
@@ -83,7 +84,7 @@ time.tzset()
 dto=datetime.now()
 
 K_UPDATE_COUNTER = 5 # sensors are read every 5th update
-K_UPDATE_RCOUNTER = 5 # rules are applied every 5th update
+K_UPDATE_RCOUNTER = 1 # rules are applied every 5th update
 K_AUTO_TEMP = 31
 K_MAINTENANCE_LIGHT = 20    #pwm value for maintenance mode
 
@@ -137,6 +138,7 @@ S_CURSOR = "👉"
 S_CLOCK = "⏰"
 S_FAN = " 🌪 "
 
+S_TRILEFT = '◀'
 
 L_PIGRO = "PiGro"
 
@@ -158,7 +160,7 @@ UFREQ = 1
 MAINTENANCETIME = 20
 power_on = [False]*16
 maintenance = [False]*16
-maintenance_pwm = [20]*16
+maintenance_pwm = [20,0,0,0, 20,0,0,0, 20,0,0,0, 20,0,0,0]
 
 lastmaintenance = [None]*16
 
@@ -333,7 +335,7 @@ for j in range(ROW2):
     p.nextpos()
 
 if a_rere:
-    rpwm.add(0,10,PWMMode.RERE,10,80)
+    rpwm.add(0,10,PWMMode.RERE,0,80)
 else:
     rpwm.add(0,10,PWMMode.default,0,100)
 rpwm.add(1,0,PWMMode.default,0,100)
@@ -491,7 +493,7 @@ def addrule(suwa,edit=None):
     sle = ['EXIT','INPUT',S_CLOCK,'->','DEL','ENTER']
     sls = list(sen.sensors.keys())
     slsw = list()
-    slt = ['UP','DOWN','RAMP','ZIGZAG']
+    slt = ['UP','DOWN','RAMP','ZIGZAG', 'RAB', 'ZZAB']
     for i in range(len(sls)):
         if sen.sensors[sls[i]].valueisdict:
             vkeys = list(sen.sensors[sls[i]].value.keys())
@@ -515,6 +517,7 @@ def addrule(suwa,edit=None):
 
 
 def drawrule(seditpos,seditrule):
+    global rulecursoroffset
     wsadd(suwa.scr,1,3,suwa.spacer(70))
     if seditpos is not None:
         srs = seditrule.split(' ')
@@ -523,8 +526,9 @@ def drawrule(seditpos,seditrule):
         for i in range(len(srs)):
             v = srs[i]
             if i == seditpos:
+                rulecursoroffset = sp + len(srs[i])+1
                 if DRAWEDITCURSOR is True:
-                    v+='◀'
+                    v+=S_TRILEFT
                 else:
                     v+=' '
                 wsadd(suwa.scr,1,3+sp,v,curses.A_BLINK | curses.A_BOLD | curses.A_REVERSE)
@@ -533,9 +537,15 @@ def drawrule(seditpos,seditrule):
                 wsadd(suwa.scr,1,3+sp,v)
             sp+=len(srs[i])+1
         if seditpos > seditrule.count(' ') or seditrule.count(' ') == 0:
-            wsadd(suwa.scr,1,3+sp,'◀',curses.A_BLINK)
+            wsadd(suwa.scr,1,3+sp,S_TRILEFT,curses.A_BLINK)
     suwa.refresh()
 
+def rinput(width):
+    global rulemode,numrules,seditrule,seditpos,quit_suwa,slsw,slo,slt,rulename,rulecursoroffset
+    value = suwa.input(rulecursoroffset+1,1,width,1,True)
+    #else:
+    #    value = suwa.input(5+len(seditrule)+1,1,width,1,True)
+    return value
 
 def selectrule(index,value,selected):
     global rulemode,numrules,seditrule,seditpos,quit_suwa,slsw,slo,slt,rulename
@@ -543,7 +553,8 @@ def selectrule(index,value,selected):
         quit_suwa = True
         return
     elif value == 'INPUT':
-        value = suwa.input(5+len(seditrule)+3,1,9,1,True)
+        #value = suwa.input(5+len(seditrule.split(S_TRILEFT)[0])+3,1,9,1,True)
+        value = rinput(9)
         if len(value):
             if '.' in value:
                 con.add_object(seditpos, value)
@@ -552,7 +563,8 @@ def selectrule(index,value,selected):
         scr.refresh()
         suwa.update_all()
     elif value == S_CLOCK:
-        tr = suwa.input(5+len(seditrule)+3,1,16,1,True)
+        tr = rinput(16)
+#        tr = suwa.input(5+len(seditrule.split(S_TRILEFT)[0])+3,1,16,1,True)
         if '-' in tr:
             value = S_CLOCK+tr
         else:
@@ -586,6 +598,13 @@ def selectrule(index,value,selected):
     elif value in list(slo):
         con.add_object(seditpos, value)
     elif value in slt:
+        if value in ['RAB','ZZAB']:
+            #tr = suwa.input(5+len(seditrule.split(S_TRILEFT)[0])+3,1,8,1,True)
+            tr = rinput(8)
+            if '-' in tr:
+                value += tr
+            else:
+                value += '50-100'
         con.add_object(seditpos, str(value))
     elif 'PWM' in value:
         con.add_object(seditpos, suw.W(value))

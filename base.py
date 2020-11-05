@@ -277,6 +277,22 @@ class Control():
                             if float(target.get_selected_value()) == 0:
                                 c.mode = 0
                             target.down()
+                    elif c[:4] == 'ZZAB':
+                        ab = c[4:].split('-')
+                        if c.mode is None or c.mode == 0:
+                            if int(target.get_selected_value()) == int(ab[1]):
+                                c.mode = 1
+                            target.up()
+                        elif c.mode == 1:
+                            if int(target.get_selected_value()) == int(ab[0]):
+                                c.mode = 0
+                            target.down()
+                    elif c[:3] == 'RAB':
+                        ab = c[3:].split('-')
+                        if float(target.get_selected_value()) == float(ab[1]):
+                                target.set(int(ab[0])/10)
+                        else:
+                            target.up()
                     else:
                         cd = float(c.value)
                         cd = int(float(cd))
@@ -300,10 +316,7 @@ def ret(s):
     for cc in (['AND','OR'],['<','>','=','<=','>=','!='],['*','/'],['-','+']):
         for c in cc:
             left, op, right = s.partition(c)
-            #if left is None:
-            #    return None
-            #if right is None:
-            #    return None
+
             if op == '*':
                 return ret(left) * ret(right)
             elif op == '/':
