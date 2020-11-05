@@ -533,6 +533,7 @@ def drawrule(seditpos,seditrule):
                     v+=' '
                 wsadd(suwa.scr,1,3+sp,v,curses.A_BLINK | curses.A_BOLD | curses.A_REVERSE)
             else:
+                rulecursoroffset = sp + len(srs[i])+1
                 v+= ' '
                 wsadd(suwa.scr,1,3+sp,v)
             sp+=len(srs[i])+1
