@@ -2,6 +2,9 @@
 
 ![Screenshot](img_pigro.png)
 
+![Screenshot](img_pigroMQTT.png)
+
+
 hotkeys:
 
 - 's' : save config
