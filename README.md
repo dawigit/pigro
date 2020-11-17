@@ -96,6 +96,17 @@ Start without showing moon
 `python3 pigro.py -nomoon`
 
 
+Start with color theme ['default','blue','red','c64','pip3boy']
+
+`python3 pigro.py -Cpip3boy`
+
+
+Expose as mqtt
+
+`python3 pigro.py -mqtt`
+
+
+
 ![Screenshot](rules1sm.png)
 
 ![Screenshot](rules2sm.png)
