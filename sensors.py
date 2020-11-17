@@ -91,6 +91,10 @@ class Sensors():
             return list(self.sensors[name].value.keys())
     def isvaluedict(self,name):
         return True if type(self.sensors[name].value) is dict else False
-
+    def getall(self):
+        d = {}
+        for k in list(self.sensors.keys()):
+            d[self.sensors[k].name] = self.sensors[k].get()
+        return d
 
 sen = Sensors()

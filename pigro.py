@@ -13,6 +13,8 @@ a_nomoon = False
 a_noinit = False
 a_ccinit = 'default'
 a_newconf = False
+a_mqtt = False
+
 if len(sys.argv) > 1:
     for a in sys.argv:
         if a == '-rere':
@@ -33,6 +35,8 @@ if len(sys.argv) > 1:
                 ROW2 = setrow2
         elif a == '-newconf':
             a_newconf = True
+        elif a == '-mqtt':
+            a_mqtt = True
         else:
             if a != 'pigro.py':
                 print('unknown argument: '+a)
@@ -49,6 +53,9 @@ import yaml
 import threading
 from threading import Timer
 from sensors import sen,W1,Sensor
+import json
+import logging
+logging.basicConfig(filename='./pigro.log', filemode='w', level=logging.INFO)
 
 rpwm = PWM9685(a_noinit)
 
@@ -77,6 +84,92 @@ if not a_nomoon:
     city = "Munich"
     set_location(city)
 
+def pmon_message(client, userdata, message):
+    logging.info('on_message:')
+    mp = message.payload.decode("utf-8")
+    mt = message.topic.split('/')[-2]
+    logging.info('topic='+message.topic)
+    logging.info('name='+mt)
+    logging.info('data='+mp)
+    mp = json.loads(mp)
+    if type(mp) is dict:
+        k = list(mp.keys())
+        if 'brightness' in k:
+            v = int(mp['brightness'])
+            v = int(round(v/10,0))
+            suw.W(mt).set(v)
+        if 'state' in k:
+            s = mp['state']
+            if s == 'OFF':
+                suw.W(mt).set(0)
+
+if a_mqtt is True:
+    import pigromqtt
+    tr = {
+        'W10': 'wonezero',
+        'W11': 'woneone',
+        'HIH': 'hih',
+    }
+    t = "homeassistant/sensor/"
+    for s in list(sen.sensors.keys()):
+        tn = str(tr[sen.sensors[s].name])
+        ts = str(t + tn)
+        logging.info('conf:'+ts)
+        if sen.isvaluedict(s) is True:
+            pl = {"device_class": "temperature",
+                "name": "HIHTemperature",
+                "state_topic": str(ts+'/state'),
+                "unit_of_measurement": "°C",
+                "value_template": "{{ value_json.temperature}}"
+            }
+            tp = str(ts+'T/config')
+            logging.info(tp)
+            logging.info(json.dumps(pl))
+            pigromqtt.pub(tp,json.dumps(pl))
+            pl = {"device_class": "humidity",
+                "name": "HIHHumidity",
+                "state_topic": str(ts+"/state"),
+                "unit_of_measurement": "%RH",
+                "value_template": "{{ value_json.humidity}}"
+            }
+            tp = str(ts+'H/config')
+            logging.info(tp)
+            logging.info(json.dumps(pl))
+            pigromqtt.pub(tp,json.dumps(pl))
+        else:
+            pl = {"device_class": "temperature",
+                "name": "W1Temperature",
+                "state_topic": str(ts+'/state'),
+                "unit_of_measurement": "°C",
+                "value_template": "{{ value_json.temperature}}"
+            }
+            tp = str(ts+'/config')
+            logging.info(tp)
+            logging.info(json.dumps(pl))
+            pigromqtt.pub(tp,json.dumps(pl))
+
+    t = "homeassistant/light/"
+    for i in range(ROW1*ROW2):
+        tn = "PWM"+str(i)
+        ts = str(t+tn)
+        pl = {"~": ts,
+              "name": tn,
+              "unique_id": tn,
+              "stat_t": "~/state",
+              "cmd_t": "~/set",
+              "brightness": True,
+              "bri_scl": 101,
+              "schema": "json"
+        }
+        #logging.info('config:'+ts)
+        #logging.info('payload:'+json.dumps(pl))
+        topic = str(ts+"/config")
+        pigromqtt.pub(topic,json.dumps(pl))
+
+    pigromqtt.client.on_message = pmon_message
+    for i in range(ROW1*ROW2):
+        pigromqtt.client.subscribe("homeassistant/light/PWM"+str(i)+"/set")
+
 from widget import *
 
 os.environ['DE'] = 'EU/CET-1'
@@ -84,7 +177,7 @@ time.tzset()
 dto=datetime.now()
 
 K_UPDATE_COUNTER = 5 # sensors are read every 5th update
-K_UPDATE_RCOUNTER = 1 # rules are applied every 5th update
+K_UPDATE_RCOUNTER = 3 # rules are applied every 5th update
 K_AUTO_TEMP = 31
 K_MAINTENANCE_LIGHT = 20    #pwm value for maintenance mode
 
@@ -180,6 +273,7 @@ def wpwm_change(index,value,selected):
         rpwm.set(index,value)
     else:
         rpwm.set(index,maintenance_pwm[index])
+    update_mqtt()
 
 def check_onoff(port=0):
     global power_on,maintenance,maintenance_pwm
@@ -396,10 +490,14 @@ suw.focus("PWM0")
 counter = 0
 rcounter = 0
 
+
 def update():
     global counter,rcounter
     pos_status.draw(S_UPDATE)
+    scr.refresh()
     update_datetime()
+    if a_mqtt is True:
+        update_mqtt()
     scr.refresh()
     for i in range(ROW1*ROW2):
         check_onoff(i)
@@ -413,11 +511,55 @@ def update():
     rcounter += 1
     if rcounter == K_UPDATE_RCOUNTER:
         for k in list(con.rules.keys()):
-            con.rid(k)
+            con.rid(k,strrule(con.rules[k]))
         rcounter = 0
     suw.update_all()
     pos_status.draw(S_OK)
     scr.refresh()
+
+def update_mqtt():
+    global a_mqtt
+    if a_mqtt is False:
+        return
+    d = {}
+    tr = {
+        'W10': 'wonezero',
+        'W11': 'woneone',
+        'HIH': 'hih',
+    }
+    topre = 'homeassistant/sensor/'
+    tostate = '/state'
+    toname = ''
+    topic = ''
+    for k in list(sen.sensors.keys()):
+        v = sen.sensors[k].get()
+        toname = str(tr[k])
+        topic = str(topre + toname + tostate)
+        vv = {}
+        if type(v) is dict:
+            vv = {'temperature': round(v['c'],2),
+                  'humidity': round(v['h'],2)
+            }
+        else:
+            vv = {'temperature': round(v,2)}
+        pigromqtt.pub(topic,json.dumps(vv))
+
+    t = 'homeassistant/light/'
+    for i in range(ROW1*ROW2):
+        tn = "PWM"+str(i)
+        ts = str(t+tn)
+        vpwm = rpwm.get(i)
+        vv = {
+          "state": "ON",
+          "brightness": int(vpwm),
+          "brightness_pct": 101
+        }
+        topic = str(ts+'/state')
+        #logging.info('ut='+topic)
+        #logging.info('uv='+json.dumps(vv))
+        pigromqtt.pub(topic,json.dumps(vv))
+
+
 
 def timed_update():
     update()
@@ -585,7 +727,7 @@ def selectrule(index,value,selected):
     elif value == 'ENTER':
         if '->' in seditrule:
             con.add_rule()
-            con.rid(rulename)
+            con.rid(rulename,strrule(con.editrule))
         quit_suwa = True
         return
     elif value in list(slsw):
@@ -780,6 +922,12 @@ while key != ord('q'):
         xr = exportrules()
         with open(r'./rules.yaml', 'w') as file:
             config = yaml.dump(xr, file)
+    if a_mqtt is True:
+        update_mqtt()
+
+if a_mqtt is True:
+    if pigromqtt.client is not None:
+        pigromqtt.client.disconnect()
 
 save()
 suw.quit()

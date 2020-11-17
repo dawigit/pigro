@@ -2,6 +2,8 @@
 from enum import Flag, auto
 from datetime import datetime
 import re
+import logging
+#logging.basicConfig(filename='./pigro.log', filemode='w', level=logging.INFO)
 
 S_CLOCK = "⏰"
 
@@ -37,13 +39,7 @@ ops = {
 
 class ControlRule():
     def __init__(self,a,b,rule):
-        #if type(a) is ControlRule:
-        #    self.a = a.rid()
-        #else:
         self.a = a
-        #if type(b) is ControlRule:
-        #    self.b = b.rid()
-        #else:
         self.b = b
         self.rule = rule
 
@@ -212,8 +208,9 @@ class Control():
             self.add_rule()
             i+=1
 
-    def rid(self,rulename):
+    def rid(self,rulename,rulestr=''):
         r = self.rules[rulename]
+        logging.info('ridding {}[{}]'.format(rulename,rulestr))
         if len(r) == 0:
             return
         if r.index('->') is not None:
@@ -253,9 +250,11 @@ class Control():
         for sr in se:
             srr = ret(sr[1:-1])
             s = s.replace(sr,str(srr))
+        logging.info('ridding {}[{}]'.format(rulename,s))
         cond = ret(s)
 
         if cond == True:
+            logging.info('applyin {}[{}]'.format(rulename,rulestr))
             target = None
             for c in cseq:
                 if type(c.value) is str and target is not None:
@@ -299,6 +298,8 @@ class Control():
                         target.set(int(cd/10))
                 else:
                     target = c.value
+            logging.info('applied {}[{}]'.format(rulename,rulestr))
+
 
 def ret(s):
     if type(s.strip()) is bool:

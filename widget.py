@@ -403,6 +403,7 @@ class WidgetRoller(Widget):
             if self.locked is False:
                 self.cursorposition = int(index)
                 self.select()
+                self.win.refresh()
 
     def onkeyboard(self,key):
         if key == ord('d'):
@@ -476,6 +477,7 @@ class WidgetSelect(Widget):
             row += 1
         if self.is_focus() == True:
             self.drawcursor()
+        self.win.refresh()
 
     def drawcursor(self):
         global scr
@@ -516,6 +518,8 @@ class WidgetSelect(Widget):
             if self.locked is False:
                 self.cursorposition = int(index)
                 self.select()
+                #self.draw()
+                self.win.refresh()
                 #self.movecursor(0)
 
 
