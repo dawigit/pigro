@@ -6,6 +6,7 @@ DRAWEDITCURSOR = True
 NOAUTO = False
 ROW1 = 4
 ROW2 = 1
+MQTTPREFIX = ""
 import sys
 
 a_rere = False
@@ -37,6 +38,10 @@ if len(sys.argv) > 1:
             a_newconf = True
         elif a == '-mqtt':
             a_mqtt = True
+        elif '-mqttprefix' in a:
+            a_mqttprefix = a[11:].strip()
+            if a_mqttprefix != '':
+                MQTTPREFIX = a_mqttprefix
         else:
             if a != 'pigro.py':
                 print('unknown argument: '+a)
@@ -73,6 +78,9 @@ slt = []
 if len(sen.sensors) == 0:
     NOAUTO = True
 
+if a_mqtt is True:
+    import pigromqtt
+
 if not a_nomoon:
     from moon import get_moon
     from moon import get_phase
@@ -97,27 +105,22 @@ def pmon_message(client, userdata, message):
         if 'brightness' in k:
             v = int(mp['brightness'])
             v = int(round(v/10,0))
-            suw.W(mt).set(v)
+            suw.W(mt[len(MQTTPREFIX):]).set(v)
         if 'state' in k:
             s = mp['state']
             if s == 'OFF':
-                suw.W(mt).set(0)
-
-if a_mqtt is True:
-    import pigromqtt
-    tr = {
-        'W10': 'wonezero',
-        'W11': 'woneone',
-        'HIH': 'hih',
-    }
+                suw.W(mt[len(MQTTPREFIX):]).set(0)
+def config_mqtt():
+    global a_mqtt, MQTTPREFIX
     t = "homeassistant/sensor/"
     for s in list(sen.sensors.keys()):
-        tn = str(tr[sen.sensors[s].name])
+        tn = str(sen.sensors[s].name)
+        tn = MQTTPREFIX+tn
         ts = str(t + tn)
         logging.info('conf:'+ts)
         if sen.isvaluedict(s) is True:
             pl = {"device_class": "temperature",
-                "name": "HIHTemperature",
+                "name": tn+"Temperature",
                 "state_topic": str(ts+'/state'),
                 "unit_of_measurement": "°C",
                 "value_template": "{{ value_json.temperature}}"
@@ -127,7 +130,7 @@ if a_mqtt is True:
             logging.info(json.dumps(pl))
             pigromqtt.pub(tp,json.dumps(pl))
             pl = {"device_class": "humidity",
-                "name": "HIHHumidity",
+                "name": tn+"Humidity",
                 "state_topic": str(ts+"/state"),
                 "unit_of_measurement": "%RH",
                 "value_template": "{{ value_json.humidity}}"
@@ -138,7 +141,7 @@ if a_mqtt is True:
             pigromqtt.pub(tp,json.dumps(pl))
         else:
             pl = {"device_class": "temperature",
-                "name": "W1Temperature",
+                "name": tn,
                 "state_topic": str(ts+'/state'),
                 "unit_of_measurement": "°C",
                 "value_template": "{{ value_json.temperature}}"
@@ -150,7 +153,7 @@ if a_mqtt is True:
 
     t = "homeassistant/light/"
     for i in range(ROW1*ROW2):
-        tn = "PWM"+str(i)
+        tn = MQTTPREFIX+"PWM"+str(i)
         ts = str(t+tn)
         pl = {"~": ts,
               "name": tn,
@@ -158,18 +161,54 @@ if a_mqtt is True:
               "stat_t": "~/state",
               "cmd_t": "~/set",
               "brightness": True,
-              "bri_scl": 101,
+              "bri_scl": 100,
               "schema": "json"
         }
-        #logging.info('config:'+ts)
-        #logging.info('payload:'+json.dumps(pl))
         topic = str(ts+"/config")
         pigromqtt.pub(topic,json.dumps(pl))
 
     pigromqtt.client.on_message = pmon_message
     for i in range(ROW1*ROW2):
-        pigromqtt.client.subscribe("homeassistant/light/PWM"+str(i)+"/set")
+        pigromqtt.client.subscribe("homeassistant/light/"+MQTTPREFIX+"PWM"+str(i)+"/set")
 
+def update_mqtt():
+    global a_mqtt, pigromqtt
+    if a_mqtt is False:
+        return
+    d = {}
+    topre = 'homeassistant/sensor/'
+    tostate = '/state'
+    toname = ''
+    topic = ''
+    for k in list(sen.sensors.keys()):
+        v = sen.sensors[k].get()
+        toname = MQTTPREFIX+str(k)
+        topic = str(topre + toname + tostate)
+        vv = {}
+        if type(v) is dict:
+            vv = {'temperature': round(v['c'],2),
+                  'humidity': round(v['h'],2)
+            }
+        else:
+            vv = {'temperature': round(v,2)}
+        pigromqtt.pub(topic,json.dumps(vv))
+    t = 'homeassistant/light/'
+    for i in range(ROW1*ROW2):
+        tn = MQTTPREFIX+"PWM"+str(i)
+        ts = str(t+tn)
+        vpwm = rpwm.get(i)
+        vv = {
+          "state": "ON",
+          "brightness": int(vpwm),
+          "brightness_pct": 100
+        }
+        topic = str(ts+'/state')
+        #logging.info('ut='+topic)
+        #logging.info('uv='+json.dumps(vv))
+        pigromqtt.pub(topic,json.dumps(vv))
+
+
+config_mqtt()
 from widget import *
 
 os.environ['DE'] = 'EU/CET-1'
@@ -285,6 +324,8 @@ def check_onoff(port=0):
     tnow = t.hour*60+t.minute
     if toff < ton:
         toff+=24*60
+        if tnow < ton:
+            tnow+=24*60
     if tnow >= ton and tnow <= toff:
         power_on[port] = True
         rpwm.enable(port)
@@ -326,6 +367,7 @@ def get_dht(m):
 #get_hih(mode)
 #'r' read sensor values
 #'c'/'h' retrieve values from hih_result (stored sensor values)
+
 def get_hih(m):
     if 'HIH' in sen.sensors.keys():
         if m=='r':
@@ -415,14 +457,14 @@ for j in range(ROW2):
         p.nextposx()
         suw.add_widgetclock("CLOCK"+str(i+j*ROW1)+"OFF", p,
             config['CLOCK'+str(i+j*ROW1)+'OFF'][0],config['CLOCK'+str(i+j*ROW1)+'OFF'][1])
-        p.nextposx()
-        if i == 0 and j==0:
-            suw.add_widgetroller("PWM"+str(i+j*ROW1)+"INV", truefalselist, p, WMode.FNL,
-                config['PWM'+str(i+j*ROW1)+'INV'],config['PWM'+str(i+j*ROW1)+'INV'],0,1,
-                [WLabel("Inverse",WPos(0,-1))])
-        else:
-            suw.add_widgetroller("PWM"+str(i+j*ROW1)+"INV", truefalselist, p, WMode.FNL,
-                config['PWM'+str(i+j*ROW1)+'INV'],config['PWM'+str(i+j*ROW1)+'INV'],0,1)
+        #p.nextposx()
+        #if i == 0 and j==0:
+        #    suw.add_widgetroller("PWM"+str(i+j*ROW1)+"INV", truefalselist, p, WMode.FNL,
+        #        config['PWM'+str(i+j*ROW1)+'INV'],config['PWM'+str(i+j*ROW1)+'INV'],0,1,
+        #        [WLabel("Inverse",WPos(0,-1))])
+        #else:
+        #    suw.add_widgetroller("PWM"+str(i+j*ROW1)+"INV", truefalselist, p, WMode.FNL,
+        #        config['PWM'+str(i+j*ROW1)+'INV'],config['PWM'+str(i+j*ROW1)+'INV'],0,1)
         p.x = p.ix
         p.nextposy()
     p.setnext(0,2)
@@ -438,7 +480,7 @@ for i in range(2,ROW1*ROW2):
 for i in range(ROW1*ROW2):
     rpwm.enable(i)
     suw.set_onchange("PWM"+str(i),wpwm_change,i)
-    suw.set_onchange("PWM"+str(i)+"INV",set_pwmreversed,i)
+    #suw.set_onchange("PWM"+str(i)+"INV",set_pwmreversed,i)
     #suw.W("PWM"+str(i)).locked = maintenance[i]
 
 pos_sens.setnext(0,1)
@@ -516,50 +558,6 @@ def update():
     suw.update_all()
     pos_status.draw(S_OK)
     scr.refresh()
-
-def update_mqtt():
-    global a_mqtt
-    if a_mqtt is False:
-        return
-    d = {}
-    tr = {
-        'W10': 'wonezero',
-        'W11': 'woneone',
-        'HIH': 'hih',
-    }
-    topre = 'homeassistant/sensor/'
-    tostate = '/state'
-    toname = ''
-    topic = ''
-    for k in list(sen.sensors.keys()):
-        v = sen.sensors[k].get()
-        toname = str(tr[k])
-        topic = str(topre + toname + tostate)
-        vv = {}
-        if type(v) is dict:
-            vv = {'temperature': round(v['c'],2),
-                  'humidity': round(v['h'],2)
-            }
-        else:
-            vv = {'temperature': round(v,2)}
-        pigromqtt.pub(topic,json.dumps(vv))
-
-    t = 'homeassistant/light/'
-    for i in range(ROW1*ROW2):
-        tn = "PWM"+str(i)
-        ts = str(t+tn)
-        vpwm = rpwm.get(i)
-        vv = {
-          "state": "ON",
-          "brightness": int(vpwm),
-          "brightness_pct": 101
-        }
-        topic = str(ts+'/state')
-        #logging.info('ut='+topic)
-        #logging.info('uv='+json.dumps(vv))
-        pigromqtt.pub(topic,json.dumps(vv))
-
-
 
 def timed_update():
     update()
