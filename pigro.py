@@ -71,6 +71,7 @@ rulename = None
 seditrule = None
 seditpos = 0
 rulecursoroffset = 0
+altkey = False
 slsw = []
 slo = []
 slt = []
@@ -207,8 +208,8 @@ def update_mqtt():
         #logging.info('uv='+json.dumps(vv))
         pigromqtt.pub(topic,json.dumps(vv))
 
-
-config_mqtt()
+if a_mqtt is True:
+    config_mqtt()
 from widget import *
 
 os.environ['DE'] = 'EU/CET-1'
@@ -689,7 +690,7 @@ def rinput(width):
     return value
 
 def selectrule(index,value,selected):
-    global rulemode,numrules,seditrule,seditpos,quit_suwa,slsw,slo,slt,rulename
+    global rulemode,numrules,seditrule,seditpos,altkey,quit_suwa,slsw,slo,slt,rulename
     if value == 'EXIT':
         quit_suwa = True
         return
@@ -698,9 +699,15 @@ def selectrule(index,value,selected):
         value = rinput(9)
         if len(value):
             if '.' in value:
-                con.add_object(seditpos, value)
+                if altkey:
+                    con.insert_object(seditpos, value)
+                else:
+                    con.add_object(seditpos, value)
             if value.isdigit():
-                con.add_object(seditpos, value)
+                if altkey:
+                    con.insert_object(seditpos, value)
+                else:
+                    con.add_object(seditpos, value)
         scr.refresh()
         suwa.update_all()
     elif value == S_CLOCK:
@@ -711,7 +718,10 @@ def selectrule(index,value,selected):
         else:
             value = None
         if value is not None:
-            con.add_object(seditpos, str(value))
+            if altkey:
+                con.insert_object(seditpos, str(value))
+            else:
+                con.add_object(seditpos, str(value))
         scr.refresh()
         suwa.update_all()
     elif value == 'DEL':
@@ -731,13 +741,22 @@ def selectrule(index,value,selected):
     elif value in list(slsw):
         if '@' in value:
             vs = value.split('@')
-            con.add_object(seditpos, sen.sensors[vs[0]],vs[1])
+            if altkey:
+                con.insert_object(seditpos, sen.sensors[vs[0]],vs[1])
+            else:
+                con.add_object(seditpos, sen.sensors[vs[0]],vs[1])
         else:
             con.add_object(seditpos, sen.sensors[value])
     elif value in ['->']:
-        con.add_object(seditpos, value)
+        if altkey:
+            con.insert_object(seditpos, value)
+        else:
+            con.add_object(seditpos, value)
     elif value in list(slo):
-        con.add_object(seditpos, value)
+        if altkey:
+            con.insert_object(seditpos, value)
+        else:
+            con.add_object(seditpos, value)
     elif value in slt:
         if value in ['RAB','ZZAB']:
             #tr = suwa.input(5+len(seditrule.split(S_TRILEFT)[0])+3,1,8,1,True)
@@ -746,9 +765,15 @@ def selectrule(index,value,selected):
                 value += tr
             else:
                 value += '50-100'
-        con.add_object(seditpos, str(value))
+        if altkey:
+            con.insert_object(seditpos, str(value))
+        else:
+            con.add_object(seditpos, str(value))
     elif 'PWM' in value:
-        con.add_object(seditpos, suw.W(value))
+        if altkey:
+            con.insert_object(seditpos, suw.W(value))
+        else:
+            con.add_object(seditpos, suw.W(value))
     if value is not None:
         seditrule = strrule(con.editrule)
         seditpos += 1
@@ -847,26 +872,28 @@ def suwer_onoff():
         quit_suwer = False
         suw.refresh()
 
-
 timed_update()
 update()
 key = ''
+altkey = False
+scr.keypad(True)
 while key != ord('q'):
     if quit_suwa == True:
         suwa_onoff()
     if quit_suwer == True:
         suwer_onoff()
-
     key = scr.getch()
+    if curses.keyname(key) == b'^[':
+        altkey = True
     if suwa is not None:
-        suwa.onkeyboard(key)
+        suwa.onkeyboard(key,altkey)
         suwa.refresh()
     elif suwer is not None:
-        suwer.onkeyboard(key)
+        suwer.onkeyboard(key,altkey)
         if suwer:
             suwer.refresh()
     else:
-        suw.onkeyboard(key)
+        suw.onkeyboard(key,altkey)
     if key == ord(' '):
         timed_update()
     if key == ord('t'):
@@ -920,6 +947,8 @@ while key != ord('q'):
         xr = exportrules()
         with open(r'./rules.yaml', 'w') as file:
             config = yaml.dump(xr, file)
+    if curses.keyname(key) == b'^J':
+        altkey = False
     if a_mqtt is True:
         update_mqtt()
 

@@ -174,6 +174,10 @@ class Control():
         else:
             self.editrule[ri] = Rule(o,i)
 
+    def insert_object(self,ri,o,i=None):
+        lse = len(self.editrule)
+        self.editrule.insert(ri,Rule(o,i))
+
     def del_last(self):
         if len(self.editrule):
             del self.editrule[-1]

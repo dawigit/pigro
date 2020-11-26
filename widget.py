@@ -156,6 +156,7 @@ def curinit():
     scr.clear()
     curses.resizeterm(y, x)
     scr.refresh()
+    scr.keypad(True)
     curses.start_color()
     curses.use_default_colors()
     curses.savetty()
@@ -317,7 +318,7 @@ class Widget(BaseWidget):
                     l.update()
             wsadd(self.win,self.pos.y+l.labelpos.y, self.pos.x+l.labelpos.x, l.value, ccp(0) if isinstance(l.value, WSymbol) else l.ccolor)
             first = False
-    def onkeyboard(self,key):
+    def onkeyboard(self,key,altkey):
         None
     def getconfig(self):
         None
@@ -405,7 +406,7 @@ class WidgetRoller(Widget):
                 self.select()
                 self.win.refresh()
 
-    def onkeyboard(self,key):
+    def onkeyboard(self,key,altkey):
         if key == ord('d'):
             self.draw()
         if key == curses.KEY_UP:
@@ -523,7 +524,7 @@ class WidgetSelect(Widget):
                 #self.movecursor(0)
 
 
-    def onkeyboard(self,key):
+    def onkeyboard(self,key,altkey):
         if key == ord('d'):
             self.draw()
         if key == curses.KEY_UP:
@@ -706,12 +707,12 @@ class SuWidget():
     def update(self,name):
         self._wlist[name].draw()
 
-    def onkeyboard(self,key):
+    def onkeyboard(self,key,altkey):
         if key == curses.KEY_RIGHT:
             self.next()
         if key == curses.KEY_LEFT:
             self.prev()
-        self._wlist[self._focus].onkeyboard(key)
+        self._wlist[self._focus].onkeyboard(key,altkey)
 
     def quit(self):
         curses.nocbreak()
