@@ -425,19 +425,15 @@ if a_newconf is True:
 
 suw.rect(0, 0, pg.x, pg.y)
 suw.add_widgetlabel("PIGRO", L_PIGRO, pos_pigro)
-p = WPos(6,4)
+p = WPos(6,5)
 #leading symbols for PWMn
 wsl = {'default':S_LAMP,'busy':S_WRENCH,'off':S_SLEEP}
 wsf = {'default':S_FAN,'busy':S_WRENCH,'off':S_SLEEP}
 wslist = [wsl,wsf,wsf,wsf]
 slist = [S_LAMP,S_LAMP,S_FAN,S_FAN]
 for j in range(ROW2):
+    p.setnext(10,3)
     for i in range(ROW1):
-        if i == 0:
-            p.setnext(10,3)
-        else:
-            p.setnext(10,3)
-
         if i == 0:
             suw.add_widgetroller("PWM"+str(i+j*ROW1), Lpercent, p, WMode.FNL,
                 config['PWM'+str(i+j*ROW1)],config['PWM'+str(i+j*ROW1)],0,1,
@@ -447,18 +443,33 @@ for j in range(ROW2):
                 config['PWM'+str(i+j*ROW1)],config['PWM'+str(i+j*ROW1)],0,1,
                 [WSymbol(wslist[i],WPos(-4,1))])
         p.nextposx()
-        if i == 0 and j==0:
+    p.x = p.ix
+    p.setnext(0,3)
+    p.nextpos()
+    p.setnext(10,3)
+    for i in range(ROW1):
+        if i == 0: # and j==0:
             suw.add_widgetclock("CLOCK"+str(i+j*ROW1)+"ON", p,
                 config['CLOCK'+str(i+j*ROW1)+'ON'][0],config['CLOCK'+str(i+j*ROW1)+'ON'][1],
-                [WLabel(" ⏰ ",WPos(-4,1)), WLabel("On/Off",WPos(0,-1))])
+                [WLabel("ON ",WPos(-4,1)), WLabel(" ⏰ ",WPos(-5,0))])
         else:
             suw.add_widgetclock("CLOCK"+str(i+j*ROW1)+"ON", p,
-                config['CLOCK'+str(i+j*ROW1)+'ON'][0],config['CLOCK'+str(i+j*ROW1)+'ON'][1],
-                [WLabel(" ⏰ ",WPos(-4,1))])
+                config['CLOCK'+str(i+j*ROW1)+'ON'][0],config['CLOCK'+str(i+j*ROW1)+'ON'][1])
+                #,[WLabel(" ⏰ ",WPos(-4,1))])
         p.nextposx()
-        suw.add_widgetclock("CLOCK"+str(i+j*ROW1)+"OFF", p,
-            config['CLOCK'+str(i+j*ROW1)+'OFF'][0],config['CLOCK'+str(i+j*ROW1)+'OFF'][1])
-        #p.nextposx()
+    p.x = p.ix
+    p.setnext(0,3)
+    p.nextpos()
+    p.setnext(10,3)
+    for i in range(ROW1):
+        if i == 0: # and j==0:
+            suw.add_widgetclock("CLOCK"+str(i+j*ROW1)+"OFF", p,
+                config['CLOCK'+str(i+j*ROW1)+'OFF'][0],config['CLOCK'+str(i+j*ROW1)+'OFF'][1],
+                [WLabel("OFF",WPos(-4,1)),  WLabel(" ⏰ ",WPos(-5,0))])
+        else:
+            suw.add_widgetclock("CLOCK"+str(i+j*ROW1)+"OFF", p,
+                config['CLOCK'+str(i+j*ROW1)+'OFF'][0],config['CLOCK'+str(i+j*ROW1)+'OFF'][1])
+        p.nextposx()
         #if i == 0 and j==0:
         #    suw.add_widgetroller("PWM"+str(i+j*ROW1)+"INV", truefalselist, p, WMode.FNL,
         #        config['PWM'+str(i+j*ROW1)+'INV'],config['PWM'+str(i+j*ROW1)+'INV'],0,1,
@@ -466,9 +477,8 @@ for j in range(ROW2):
         #else:
         #    suw.add_widgetroller("PWM"+str(i+j*ROW1)+"INV", truefalselist, p, WMode.FNL,
         #        config['PWM'+str(i+j*ROW1)+'INV'],config['PWM'+str(i+j*ROW1)+'INV'],0,1)
-        p.x = p.ix
-        p.nextposy()
-    p.setnext(0,2)
+    p.x = p.ix
+    p.setnext(0,4)
     p.nextpos()
 
 if a_rere:
