@@ -1,5 +1,6 @@
 # PiGro #
-
+## out of pi error ?
+## check out https://github.com/dawigit/pigropico
 ![Screenshot](img_pigro.png)
 
 ![Screenshot](img_pigroMQTT.png)
